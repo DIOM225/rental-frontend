@@ -1,7 +1,7 @@
 {
-  "name": "client",
-  "version": "0.1.0",
-  "homepage": ".",
+  "name": "aptmeuble-client",
+  "version": "1.0.0",
+  "homepage": "https://client-l4hjjvvjf-mohameds-projects-7178de3c.vercel.app",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.14.0",
