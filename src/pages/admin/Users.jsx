@@ -8,7 +8,7 @@ function Users() {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:5050/api/admin/users', {
+      const res = await axios.get('https://rental-backend-uqo8.onrender.com/api/admin/users', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUsers(res.data);
@@ -29,7 +29,7 @@ function Users() {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5050/api/admin/users/${id}`, {
+      await axios.delete(`https://rental-backend-uqo8.onrender.com/api/admin/users/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       alert('Utilisateur supprimé');

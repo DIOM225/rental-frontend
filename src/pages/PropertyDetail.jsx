@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaStar } from 'react-icons/fa6';
+import { FaStar } from 'react-icons/fa';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
 import './PropertyDetail.css';
@@ -28,9 +28,9 @@ function PropertyDetail({ isAdminPreview = false }) {
     if (!id) return;
 
     const endpoint = isAdminPreview
-      ? `http://localhost:5050/api/admin/listings/${id}`
-      : `http://localhost:5050/api/listings/${id}`;
-
+        ? `${process.env.REACT_APP_API_URL}/api/admin/listings/${id}`
+        : `${process.env.REACT_APP_API_URL}/api/listings/${id}`;
+        
     axios
       .get(endpoint, {
         headers: isAdminPreview
@@ -56,7 +56,10 @@ function PropertyDetail({ isAdminPreview = false }) {
     setIsSaving(true);
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`http://localhost:5050/api/listings/${id}`, editableProperty, {
+      await axios.put(
+        `${process.env.REACT_APP_API_URL}/api/listings/${id}`,
+        editableProperty,
+        {
         headers: { Authorization: `Bearer ${token}` },
       });
       alert('✅ Changes saved successfully!');
@@ -76,7 +79,7 @@ function PropertyDetail({ isAdminPreview = false }) {
     }
 
     axios
-      .post(`http://localhost:5050/api/listings/${id}/reviews`, { rating: selectedRating })
+    .post(`${process.env.REACT_APP_API_URL}/api/listings/${id}/reviews`, { rating: selectedRating })
       .then((res) => {
         alert('Merci pour votre note!');
         setProperty(res.data);
@@ -90,7 +93,7 @@ function PropertyDetail({ isAdminPreview = false }) {
 
   const trackClick = async () => {
     try {
-      await axios.post(`http://localhost:5050/api/listings/${id}/contact-click`);
+      await axios.post(`${process.env.REACT_APP_API_URL}/api/listings/${id}/contact-click`);
     } catch (err) {
       console.error('❌ Failed to track contact click:', err);
     }

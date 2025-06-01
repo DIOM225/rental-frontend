@@ -7,7 +7,7 @@ function PendingListings() {
   const token = localStorage.getItem('token');
 
   useEffect(() => {
-    axios.get('http://localhost:5050/api/admin/pending-listings', {
+    axios.get('https://rental-backend-uqo8.onrender.com/api/admin/pending-listings', {
       headers: { Authorization: `Bearer ${token}` }
     })
     .then(res => setListings(res.data))
@@ -18,7 +18,7 @@ function PendingListings() {
     e.stopPropagation();
     e.preventDefault();
     try {
-      await axios.put(`http://localhost:5050/api/admin/listings/${id}/status`, { status }, {
+      await axios.put(`https://rental-backend-uqo8.onrender.com/api/admin/listings/${id}/status`, { status }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setListings(prev => prev.filter(listing => listing._id !== id));

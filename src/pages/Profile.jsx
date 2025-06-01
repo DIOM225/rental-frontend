@@ -11,7 +11,7 @@ const Profile = () => {
     const fetchProfile = async () => {
       try {
         const token = localStorage.getItem('token');
-        const { data } = await axios.get('http://localhost:5050/api/profile/me', {
+        const { data } = await axios.get(`${process.env.REACT_APP_API_URL}/api/profile/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setProfile(data);
@@ -35,7 +35,7 @@ const Profile = () => {
   const handleUpdate = async () => {
     try {
       const token = localStorage.getItem('token');
-      const { data } = await axios.put('http://localhost:5050/api/profile/me', form, {
+      const { data } = await axios.put(`${process.env.REACT_APP_API_URL}/api/profile/me`, form, {
         headers: { Authorization: `Bearer ${token}` },
       });
       alert('✅ Profil mis à jour');

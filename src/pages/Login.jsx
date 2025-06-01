@@ -18,7 +18,8 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:5050/api/auth/login', form);
+      const res = await axios.post('https://rental-backend-uqo8.onrender.com/api/auth/login', form);
+
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       alert('Logged in successfully!');

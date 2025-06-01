@@ -10,7 +10,7 @@ function PopularListings() {
   useEffect(() => {
     const fetchPopularListings = async () => {
       try {
-        const res = await axios.get('http://localhost:5050/api/admin/popular-listings', {
+        const res = await axios.get('https://rental-backend-uqo8.onrender.com/api/admin/popular-listings', {
           headers: {
             Authorization: `Bearer ${token}`,
           },

@@ -15,8 +15,9 @@ function AuthPage() {
     e.preventDefault();
 
     const endpoint = isLogin
-      ? 'http://localhost:5050/api/auth/login'
-      : 'http://localhost:5050/api/auth/register';
+      ? `${process.env.REACT_APP_API_URL}/api/auth/login`
+      : `${process.env.REACT_APP_API_URL}/api/auth/register`;
+
 
     try {
       const res = await axios.post(endpoint, form);

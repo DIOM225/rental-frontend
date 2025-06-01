@@ -9,7 +9,7 @@ function HostDashboard() {
   useEffect(() => {
     if (!token) return;
     axios
-      .get('http://localhost:5050/api/listings/me', {
+    .get('https://rental-backend-uqo8.onrender.com/api/listings/me', {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((res) => setListings(res.data))
@@ -19,7 +19,7 @@ function HostDashboard() {
   const handleDelete = async (id) => {
     if (!window.confirm('Supprimer cette annonce ?')) return;
     try {
-      await axios.delete(`http://localhost:5050/api/listings/${id}`, {
+      await axios.delete(`https://rental-backend-uqo8.onrender.com/api/listings/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setListings((prev) => prev.filter((l) => l._id !== id));

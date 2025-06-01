@@ -17,7 +17,7 @@ function Daily() {
     setLoading(true);
     try {
       const res = await axios.get(
-        `http://localhost:5050/api/listings?type=daily&page=${page}&limit=6&search=${searchQuery}`
+        `${process.env.REACT_APP_API_URL}/api/listings?type=daily&page=${page}&limit=6&search=${searchQuery}`
       );
       const newListings = res.data.listings || [];
 

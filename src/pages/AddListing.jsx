@@ -23,7 +23,7 @@ function AddListing() {
     const fetchUser = async () => {
       const token = localStorage.getItem('token');
       try {
-        const res = await axios.get('http://localhost:5050/api/auth/me', {
+        const res = await axios.get('https://rental-backend-uqo8.onrender.com/api/auth/me', {
           headers: { Authorization: `Bearer ${token}` },
         });
         setIsApproved(res.data.approved);
@@ -39,7 +39,7 @@ function AddListing() {
   const handleRequestApproval = async () => {
     const token = localStorage.getItem('token');
     try {
-      await axios.post('http://localhost:5050/api/requests', {}, {
+      await axios.post('https://rental-backend-uqo8.onrender.com/api/requests', {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
       alert('Demande envoyée à l’administrateur.');
@@ -89,7 +89,7 @@ function AddListing() {
         phone: `+225${phone}`,
       };
 
-      await axios.post('http://localhost:5050/api/listings', newListing, {
+      await axios.post('https://rental-backend-uqo8.onrender.com/api/listings', newListing, {
         headers: { Authorization: `Bearer ${token}` },
       });
 

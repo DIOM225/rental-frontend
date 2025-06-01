@@ -11,7 +11,7 @@ function EditListing() {
   useEffect(() => {
     const fetchListing = async () => {
       try {
-        const res = await axios.get(`http://localhost:5050/api/listings/${id}`);
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/listings/${id}`);
         const listing = res.data;
         const user = JSON.parse(localStorage.getItem('user'));
 
@@ -53,7 +53,7 @@ function EditListing() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`http://localhost:5050/api/listings/${id}`, form, {
+      await axios.put(`${process.env.REACT_APP_API_URL}/api/listings/${id}`, form, {
         headers: { Authorization: `Bearer ${token}` }
       });
       alert('✅ Annonce mise à jour !');

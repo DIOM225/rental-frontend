@@ -24,10 +24,10 @@ function Dashboard() {
       try {
         const token = localStorage.getItem('token');
         const [statsRes, requestRes] = await Promise.all([
-          axios.get('http://localhost:5050/api/admin/dashboard', {
+          axios.get('https://rental-backend-uqo8.onrender.com/api/admin/dashboard', {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          axios.get('http://localhost:5050/api/requests', {
+          axios.get('https://rental-backend-uqo8.onrender.com/api/requests', {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
@@ -61,7 +61,7 @@ function Dashboard() {
   const handleApprove = async (requestId) => {
     const token = localStorage.getItem('token');
     try {
-      await axios.patch(`http://localhost:5050/api/requests/${requestId}/approve`, {}, {
+      await axios.patch(`https://rental-backend-uqo8.onrender.com/api/requests/${requestId}/approve`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
 

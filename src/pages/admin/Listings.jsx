@@ -8,7 +8,7 @@ function Listings() {
   const fetchListings = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:5050/api/admin/listings', {
+      const res = await axios.get('https://rental-backend-uqo8.onrender.com/api/admin/listings', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setListings(res.data);
@@ -30,7 +30,7 @@ function Listings() {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5050/api/admin/listings/${id}`, {
+      await axios.delete(`https://rental-backend-uqo8.onrender.com/api/admin/listings/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setListings(prev => prev.filter(l => l._id !== id));
