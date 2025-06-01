@@ -1,0 +1,220 @@
+.property-page {
+    max-width: 1100px;
+    margin: 2rem auto;
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    padding: 2rem;
+  }
+  
+  /* Image grid with big thumbnail */
+  .property-gallery {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  
+  .thumbnail-image {
+    width: 100%;
+    height: 400px;
+    object-fit: cover;
+    border-radius: 8px;
+  }
+  
+  .side-images {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .side-images img {
+    width: 100%;
+    height: 130px;
+    object-fit: cover;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  
+  /* Responsive stacking for small screens */
+  @media (max-width: 768px) {
+    .property-gallery {
+      display: flex;
+      flex-direction: column;
+    }
+  
+    .thumbnail-image {
+      height: 300px;
+    }
+  
+    .side-images {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+  
+    .side-images img {
+      height: 120px;
+      flex: 1 1 calc(50% - 0.5rem);
+    }
+  }
+  
+  .property-header {
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  
+  .property-title {
+    font-size: 2rem;
+    font-weight: bold;
+  }
+  
+  .property-location {
+    color: #666;
+    font-size: 1.1rem;
+    margin-top: 0.25rem;
+  }
+  
+  .property-type {
+    color: #007bff;
+    font-weight: bold;
+    margin-top: 1rem;
+  }
+  
+  .property-price {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #28a745;
+    margin: 1rem 0;
+  }
+  
+  .property-stars {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.25rem;
+    margin-bottom: 1rem;
+  }
+  
+  .property-review-count {
+    margin-left: 0.5rem;
+    color: #666;
+  }
+  
+  .property-description {
+    background-color: #f9f9f9;
+    padding: 1rem;
+    border-radius: 8px;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+  }
+  
+  .property-button {
+    display: block;
+    width: 100%;
+    padding: 1rem;
+    background-color: #007bff;
+    color: white;
+    font-size: 1.1rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    cursor: pointer;
+  }
+  
+  .review-form {
+    padding: 1.5rem;
+    background-color: #f1f1f1;
+    border-radius: 8px;
+    margin-top: 2rem;
+  }
+  
+  .review-stars {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+  
+  .review-button {
+    background-color: #28a745;
+    color: white;
+    padding: 0.75rem 2rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  
+  /* ✅ Admin image grid layout */
+.admin-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+  margin-top: 1rem;
+}
+
+.admin-image-thumb {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease;
+}
+
+.admin-image-thumb:hover {
+  transform: scale(1.03);
+}
+/* ✅ Admin image grid layout */
+.admin-image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+    margin-top: 1rem;
+  }
+  
+  .admin-image-thumb {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+    transition: transform 0.2s ease;
+  }
+  
+  .admin-image-thumb:hover {
+    transform: scale(1.03);
+  }
+  
+  .more-images {
+    position: relative;
+    cursor: pointer;
+  }
+  
+  .more-images .overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    font-weight: bold;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+  }
+  
+  .side-thumb {
+    width: 100%;
+    height: 130px;
+    object-fit: cover;
+    border-radius: 8px;
+  }
+  
