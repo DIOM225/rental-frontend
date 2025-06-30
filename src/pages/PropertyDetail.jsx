@@ -107,8 +107,23 @@ function PropertyDetail({ isAdminPreview = false }) {
       alert('Veuillez sélectionner une note!');
       return;
     }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Vous devez être connecté pour laisser une note.');
+      return;
+    }
+
     axios
-      .post(`${process.env.REACT_APP_API_URL}/api/listings/${id}/reviews`, { rating: selectedRating })
+      .post(
+        `${process.env.REACT_APP_API_URL}/api/listings/${id}/reviews`,
+        { rating: selectedRating },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
       .then((res) => {
         alert('Merci pour votre note!');
         setProperty(res.data);
@@ -205,7 +220,6 @@ function PropertyDetail({ isAdminPreview = false }) {
             </p>
             <p className="property-type">{data.type === 'monthly' ? 'Location Mensuelle' : 'Location Journalière'}</p>
             <p className="property-price">{data.price.toLocaleString()} FCFA {data.type === 'monthly' ? '/ mois' : '/ jour'}</p>
-
           </>
         )}
 
