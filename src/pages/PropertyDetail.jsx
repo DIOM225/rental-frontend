@@ -1,20 +1,54 @@
+import React, { Suspense, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaStar } from 'react-icons/fa';
-import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
 import './PropertyDetail.css';
+
+const Lightbox = React.lazy(() => import('yet-another-react-lightbox'));
 
 function PropertyDetail({ isAdminPreview = false }) {
   const { id } = useParams();
   const navigate = useNavigate();
+
   const [property, setProperty] = useState(null);
   const [editableProperty, setEditableProperty] = useState(null);
   const [selectedRating, setSelectedRating] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+
+  const optimizeImage = useCallback((src, w, h) => {
+    if (!src) return '';
+    return src.includes('/upload/')
+      ? src.replace('/upload/', `/upload/w_${w},h_${h},c_fill/`)
+      : src;
+  }, []);
+
+  const handleInputChange = useCallback((field, value) => {
+    setEditableProperty((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const trackClick = useCallback(async () => {
+    try {
+      await axios.post(`${process.env.REACT_APP_API_URL}/api/listings/${id}/contact-click`);
+    } catch (err) {
+      console.error('❌ Failed to track contact click:', err);
+    }
+  }, [id]);
+
+  const openWhatsApp = useCallback(() => {
+    trackClick();
+    const adminNumber = process.env.REACT_APP_ADMIN_WHATSAPP || '2250745123456';
+    const sanitized = adminNumber.replace(/\D/g, '');
+    window.open(`https://wa.me/${sanitized}`, '_blank');
+  }, [trackClick]);
+
+  const openLightbox = useCallback((index) => {
+    setPhotoIndex(index);
+    setLightboxOpen(true);
+  }, []);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -26,40 +60,36 @@ function PropertyDetail({ isAdminPreview = false }) {
 
   useEffect(() => {
     if (!id) return;
-
     const endpoint = isAdminPreview
-        ? `${process.env.REACT_APP_API_URL}/api/admin/listings/${id}`
-        : `${process.env.REACT_APP_API_URL}/api/listings/${id}`;
-        
+      ? `${process.env.REACT_APP_API_URL}/api/admin/listings/${id}`
+      : `${process.env.REACT_APP_API_URL}/api/listings/${id}`;
+
     axios
       .get(endpoint, {
-        headers: isAdminPreview
-          ? { Authorization: `Bearer ${localStorage.getItem('token')}` }
-          : {},
+        headers: isAdminPreview ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : {},
       })
       .then((res) => {
         setProperty(res.data);
-        if (isAdminPreview) {
-          setEditableProperty(res.data);
-        }
+        if (isAdminPreview) setEditableProperty(res.data);
       })
       .catch((err) => {
         console.error('❌ Error fetching property:', err);
       });
   }, [id, isAdminPreview]);
 
-  const handleInputChange = (field, value) => {
-    setEditableProperty((prev) => ({ ...prev, [field]: value }));
-  };
+  if (!property) return <p className="center-text">Chargement...</p>;
+
+  const data = isAdminPreview ? editableProperty : property;
+  const images = data.images?.length ? data.images : [data.image];
+  const avgRating = data.reviews?.length
+    ? data.reviews.reduce((sum, r) => sum + r.rating, 0) / data.reviews.length
+    : 0;
 
   const handleSaveChanges = async () => {
     setIsSaving(true);
     try {
       const token = localStorage.getItem('token');
-      await axios.put(
-        `${process.env.REACT_APP_API_URL}/api/listings/${id}`,
-        editableProperty,
-        {
+      await axios.put(`${process.env.REACT_APP_API_URL}/api/listings/${id}`, editableProperty, {
         headers: { Authorization: `Bearer ${token}` },
       });
       alert('✅ Changes saved successfully!');
@@ -77,9 +107,8 @@ function PropertyDetail({ isAdminPreview = false }) {
       alert('Veuillez sélectionner une note!');
       return;
     }
-
     axios
-    .post(`${process.env.REACT_APP_API_URL}/api/listings/${id}/reviews`, { rating: selectedRating })
+      .post(`${process.env.REACT_APP_API_URL}/api/listings/${id}/reviews`, { rating: selectedRating })
       .then((res) => {
         alert('Merci pour votre note!');
         setProperty(res.data);
@@ -91,33 +120,6 @@ function PropertyDetail({ isAdminPreview = false }) {
       });
   };
 
-  const trackClick = async () => {
-    try {
-      await axios.post(`${process.env.REACT_APP_API_URL}/api/listings/${id}/contact-click`);
-    } catch (err) {
-      console.error('❌ Failed to track contact click:', err);
-    }
-  };
-
-  const openWhatsApp = () => {
-    trackClick();
-    const fullNumber = property.phone;
-    window.open(`https://wa.me/+225${fullNumber}`, '_blank');
-  };
-
-  const openLightbox = (index) => {
-    setPhotoIndex(index);
-    setLightboxOpen(true);
-  };
-
-  if (!property) return <p className="center-text">Chargement...</p>;
-
-  const data = isAdminPreview ? editableProperty : property;
-  const images = data.images?.length ? data.images : [data.image];
-  const avgRating = data.reviews?.length
-    ? data.reviews.reduce((sum, r) => sum + r.rating, 0) / data.reviews.length
-    : 0;
-
   return (
     <div className="property-page">
       {isAdminPreview ? (
@@ -125,34 +127,56 @@ function PropertyDetail({ isAdminPreview = false }) {
           {images.map((img, idx) => (
             <img
               key={idx}
-              src={img}
+              src={optimizeImage(img, 200, 130)}
               className="admin-image-thumb"
+              width={200}
+              height={130}
               onClick={() => openLightbox(idx)}
               alt={`View ${idx + 1}`}
+              loading="lazy"
             />
           ))}
         </div>
       ) : (
         <div className="property-gallery">
           <img
-            src={images[0]}
+            src={optimizeImage(images[0], 800, 500)}
+            srcSet={`
+              ${optimizeImage(images[0], 400, 250)} 400w,
+              ${optimizeImage(images[0], 800, 500)} 800w,
+              ${optimizeImage(images[0], 1200, 750)} 1200w
+            `}
+            sizes="(max-width: 600px) 100vw, (max-width: 1200px) 50vw, 800px"
             alt="Main"
             className="thumbnail-image"
             onClick={() => openLightbox(0)}
+            width={800}
+            height={500}
+            loading="eager"
           />
           <div className="side-images">
             {images.slice(1, 3).map((img, idx) => (
               <img
                 key={idx + 1}
-                src={img}
+                src={optimizeImage(img, 400, 250)}
+                width={400}
+                height={250}
                 alt={`View ${idx + 1}`}
-                onClick={() => openLightbox(idx + 1)}
                 className="side-thumb"
+                onClick={() => openLightbox(idx + 1)}
+                loading="lazy"
               />
             ))}
             {images.length > 3 && (
               <div className="more-images" onClick={() => openLightbox(3)}>
-                <img src={images[3]} alt="More" className="side-thumb" />
+                <img
+                  src={optimizeImage(images[3], 400, 250)}
+                  width={400}
+                  height={250}
+                  alt="More"
+                  className="side-thumb"
+                  loading="lazy"
+                />
                 <div className="overlay">+{images.length - 3}</div>
               </div>
             )}
@@ -163,12 +187,12 @@ function PropertyDetail({ isAdminPreview = false }) {
       <div className="property-header">
         {isAdminPreview ? (
           <>
-            <input name="title" value={data.title} onChange={(e) => handleInputChange('title', e.target.value)} className="editable-input" />
-            <input name="address" value={data.address} onChange={(e) => handleInputChange('address', e.target.value)} className="editable-input" />
-            <input name="city" value={data.city} onChange={(e) => handleInputChange('city', e.target.value)} className="editable-input" />
-            <input name="commune" value={data.commune} onChange={(e) => handleInputChange('commune', e.target.value)} className="editable-input" />
-            <input name="price" value={data.price} onChange={(e) => handleInputChange('price', e.target.value)} className="editable-input" />
-            <select name="type" value={data.type} onChange={(e) => handleInputChange('type', e.target.value)} className="editable-input">
+            <input value={data.title} onChange={(e) => handleInputChange('title', e.target.value)} className="editable-input" />
+            <input value={data.address} onChange={(e) => handleInputChange('address', e.target.value)} className="editable-input" />
+            <input value={data.city} onChange={(e) => handleInputChange('city', e.target.value)} className="editable-input" />
+            <input value={data.commune} onChange={(e) => handleInputChange('commune', e.target.value)} className="editable-input" />
+            <input value={data.price} onChange={(e) => handleInputChange('price', e.target.value)} className="editable-input" />
+            <select value={data.type} onChange={(e) => handleInputChange('type', e.target.value)} className="editable-input">
               <option value="monthly">Location Mensuelle</option>
               <option value="daily">Location Journalière</option>
             </select>
@@ -176,9 +200,12 @@ function PropertyDetail({ isAdminPreview = false }) {
         ) : (
           <>
             <h1 className="property-title">{data.title}</h1>
-            <p className="property-location">{data.address} – {data.city} {data.commune && `, ${data.commune}`}</p>
+            <p className="property-location">
+              {data.address} – {data.city} {data.commune && `, ${data.commune}`}
+            </p>
             <p className="property-type">{data.type === 'monthly' ? 'Location Mensuelle' : 'Location Journalière'}</p>
-            <p className="property-price">${data.price} {data.type === 'monthly' ? '/ mois' : '/ jour'}</p>
+            <p className="property-price">{data.price.toLocaleString()} FCFA {data.type === 'monthly' ? '/ mois' : '/ jour'}</p>
+
           </>
         )}
 
@@ -194,16 +221,20 @@ function PropertyDetail({ isAdminPreview = false }) {
         <div className="property-description">
           <h3>Description</h3>
           {isAdminPreview ? (
-            <textarea name="description" value={data.description} onChange={(e) => handleInputChange('description', e.target.value)} rows={5} style={{ width: '100%' }} />
+            <textarea value={data.description} onChange={(e) => handleInputChange('description', e.target.value)} rows={5} style={{ width: '100%' }} />
           ) : (
             <div style={{ whiteSpace: 'pre-line' }}>{data.description}</div>
           )}
         </div>
       )}
 
-      {!isAdminPreview && data.phone && (
+      {isAdminPreview && data.phone && (
+        <p className="host-number">📞 Numéro de l’hôte : {data.phone}</p>
+      )}
+
+      {!isAdminPreview && (
         <button onClick={openWhatsApp} className="property-button">
-          📱 Contacter l’hôte sur WhatsApp
+          📱 Contacter le service client sur WhatsApp
         </button>
       )}
 
@@ -231,14 +262,17 @@ function PropertyDetail({ isAdminPreview = false }) {
         </button>
       )}
 
-      {/* ✅ Modern Lightbox Without Modal Error */}
-      <Lightbox
-        open={lightboxOpen}
-        close={() => setLightboxOpen(false)}
-        slides={images.map((img) => ({ src: img }))}
-        index={photoIndex}
-        on={{ view: ({ index }) => setPhotoIndex(index) }}
-      />
+      {lightboxOpen && (
+        <Suspense fallback={<div>Chargement de la galerie...</div>}>
+          <Lightbox
+            open={lightboxOpen}
+            close={() => setLightboxOpen(false)}
+            slides={images.map((img) => ({ src: optimizeImage(img, 1024, 768) }))}
+            index={photoIndex}
+            on={{ view: ({ index }) => setPhotoIndex(index) }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

@@ -118,7 +118,10 @@ function Monthly() {
         }}
       >
         {listings.map((listing) => (
-          <ListingCard key={listing._id} listing={listing} />
+          <ListingCard key={listing._id} listing={{
+            ...listing,
+            images: listing.images?.map(img => img?.replace('/upload/', '/upload/w_400,h_300,c_fill/')) || []
+          }} />
         ))}
       </div>
 

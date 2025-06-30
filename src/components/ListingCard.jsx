@@ -1,6 +1,11 @@
 import { Link } from 'react-router-dom';
 import { FaStar, FaRegStar } from 'react-icons/fa6';
 
+function optimizeImage(url, width, height) {
+  if (!url) return '';
+  return url.replace('/upload/', `/upload/w_${width},h_${height},c_fill,q_auto,f_auto/`);
+}
+
 function renderStars(avgRating) {
   const stars = [];
   for (let i = 1; i <= 5; i++) {
@@ -14,10 +19,9 @@ function ListingCard({ listing, showStatus = false }) {
 
   const { _id, title, city, commune, type, price, images, reviews = [], status } = listing;
 
-  const mainImage =
-    images && images.length > 0
-      ? images[0]
-      : listing.image || 'https://via.placeholder.com/400x300?text=No+Image';
+  const mainImage = images && images.length > 0
+    ? images[0]
+    : listing.image || 'https://via.placeholder.com/400x300?text=No+Image';
 
   const avgRating =
     reviews.length > 0
@@ -27,7 +31,14 @@ function ListingCard({ listing, showStatus = false }) {
   return (
     <Link to={`/listing/${_id}`} style={styles.linkWrapper}>
       <div style={styles.card}>
-        <img src={mainImage} alt={title} style={styles.image} />
+        <img
+          src={optimizeImage(mainImage, 400, 300)}
+          width={400}
+          height={300}
+          style={styles.image}
+          loading="lazy"
+          alt={title}
+        />
 
         <div style={styles.details}>
           {/* ✅ Status badge (optional) */}
@@ -45,9 +56,7 @@ function ListingCard({ listing, showStatus = false }) {
 
           <h3 style={styles.title}>{title}</h3>
 
-          <div style={styles.stars}>
-            {renderStars(avgRating)}
-          </div>
+          <div style={styles.stars}>{renderStars(avgRating)}</div>
 
           {/* 🏙️ City and Commune */}
           <p style={styles.address}>
@@ -55,7 +64,7 @@ function ListingCard({ listing, showStatus = false }) {
           </p>
 
           <p style={styles.type}>{type === 'monthly' ? 'Mensuel' : 'Journalier'}</p>
-          <p style={styles.price}>${price} {type === 'monthly' ? '/mois' : '/jour'}</p>
+          <p style={styles.price}>{price.toLocaleString()} FCFA {type === 'monthly' ? '/mois' : '/jour'}</p>
         </div>
       </div>
     </Link>

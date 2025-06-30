@@ -1,20 +1,44 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- ✅ SEO description in French -->
+    <meta name="description" content="Apt Meuble - Votre plateforme de location d'appartements meublés en Côte d'Ivoire. Trouvez facilement votre hébergement à Abidjan, Cocody, Marcory, et plus !" />
+
+    <!-- ✅ App theme color -->
     <meta name="theme-color" content="#000000" />
-    <meta name="description" content="Web site created using create-react-app" />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+
+    <!-- ✅ Apple touch icon -->
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo.png" />
+
+    <!-- ✅ Manifest for PWA -->
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    <title>React App</title>
+
+    <!-- ✅ Title -->
+    <title>Apt Meuble - Location d'appartements meublés en Côte d'Ivoire</title>
+
+    <!-- ✅ Open Graph Meta Tags for sharing -->
+    <meta property="og:title" content="Apt Meuble - Locations meublées en Côte d'Ivoire" />
+    <meta property="og:description" content="Trouvez facilement votre appartement meublé à Abidjan, Cocody, Marcory et dans toute la Côte d'Ivoire sur Apt Meuble." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="%PUBLIC_URL%/logo.png" />
+    <meta property="og:url" content="https://www.aptmeuble.com" />
+
+    <!-- ✅ Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Apt Meuble - Locations meublées en Côte d'Ivoire" />
+    <meta name="twitter:description" content="Trouvez facilement votre appartement meublé à Abidjan, Cocody, Marcory et dans toute la Côte d'Ivoire sur Apt Meuble." />
+    <meta name="twitter:image" content="%PUBLIC_URL%/logo.png" />
+
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <noscript>Vous devez activer JavaScript pour utiliser cette application.</noscript>
     <div id="root"></div>
 
-    <!-- ✅ Tawk.to Live Chat with user info -->
+    <!-- ✅ Tawk.to Live Chat -->
     <script>
       var Tawk_API = Tawk_API || {};
       try {
@@ -27,15 +51,14 @@
           };
         }
       } catch (e) {
-        console.warn('Unable to parse user info for chat.');
+        console.warn('Impossible de récupérer les infos utilisateur pour le chat.');
       }
     </script>
-
     <script type="text/javascript">
       var Tawk_LoadStart = new Date();
-      (function () {
-        var s1 = document.createElement("script"),
-          s0 = document.getElementsByTagName("script")[0];
+      (function() {
+        var s1 = document.createElement('script'),
+            s0 = document.getElementsByTagName('script')[0];
         s1.async = true;
         s1.src = 'https://embed.tawk.to/681626682a5b77190ef24bed/1iqb8c1nd';
         s1.charset = 'UTF-8';

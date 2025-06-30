@@ -15,6 +15,7 @@ function AddListing() {
   const [thumbnailIndex, setThumbnailIndex] = useState(0);
   const [description, setDescription] = useState('');
   const [phone, setPhone] = useState('');
+  const [discountPrice, setDiscountPrice] = useState('');
 
   const [isApproved, setIsApproved] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -83,7 +84,8 @@ function AddListing() {
         city,
         commune,
         type,
-        price,
+        price: Number(price),
+        discountPrice: discountPrice || null,
         images: uploadedImageUrls,
         description,
         phone: `+225${phone}`,
@@ -123,7 +125,25 @@ function AddListing() {
         <input type="text" placeholder="Titre" value={title} onChange={(e) => setTitle(e.target.value)} required style={styles.input} />
 
         <div style={styles.grid2}>
-          <input type="number" placeholder="Prix" value={price} onChange={(e) => setPrice(e.target.value)} required style={styles.input} />
+          <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+            <span style={{ marginRight: 4 }}>FCFA</span>
+            <input
+              type="number"
+              placeholder="Prix"
+              value={price}
+              onChange={(e) => setPrice(e.target.value.replace(/[^\d]/g, ''))}
+              required
+              style={styles.input}
+            />
+            <input
+              type="number"
+              placeholder="Prix remisé"
+              value={discountPrice}
+              onChange={(e) => setDiscountPrice(e.target.value)}
+              style={styles.input}
+            />
+          </div>
+
           <select value={type} onChange={(e) => setType(e.target.value)} style={styles.input}>
             <option value="monthly">Mensuel</option>
             <option value="daily">Journalière</option>
@@ -155,7 +175,6 @@ function AddListing() {
           style={{ ...styles.input, resize: 'vertical' }}
         />
 
-        {/* ✅ File Upload + Image Preview + Delete */}
         <input
           type="file"
           multiple
