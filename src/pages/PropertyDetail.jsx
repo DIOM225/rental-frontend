@@ -42,7 +42,9 @@ function PropertyDetail({ isAdminPreview = false }) {
     trackClick();
     const adminNumber = process.env.REACT_APP_ADMIN_WHATSAPP || '2250745123456';
     const sanitized = adminNumber.replace(/\D/g, '');
-    window.open(`https://wa.me/${sanitized}`, '_blank');
+    const message = encodeURIComponent(`Bonjour 👋, je suis intéressé par ce logement : ${window.location.href}`);
+    window.open(`https://wa.me/${sanitized}?text=${message}`, '_blank');
+
   }, [trackClick]);
 
   const openLightbox = useCallback((index) => {
