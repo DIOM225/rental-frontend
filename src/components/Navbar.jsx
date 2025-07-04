@@ -27,8 +27,8 @@ function Navbar() {
   // Auto-close mobile menu on click
   const renderLinks = () => (
     <>
+      <Link to="/daily" style={styles.link} onClick={() => setIsMobileMenuOpen(false)}>Residence</Link>
       <Link to="/monthly" style={styles.link} onClick={() => setIsMobileMenuOpen(false)}>Mensuel</Link>
-      <Link to="/daily" style={styles.link} onClick={() => setIsMobileMenuOpen(false)}>Journalier</Link>
 
       {user ? (
         <>
@@ -59,7 +59,7 @@ function Navbar() {
   return (
     <nav style={styles.navbar}>
       <Link to="/" className="navbar-brand">
-        <img src="/logo.png" alt="Diom Locations Logo" style={{ height: '80px' }} />
+        <img src="/logo.png" alt="Apt Meuble" style={{ height: '80px' }} />
         </Link>
 
       {isMobile ? (
