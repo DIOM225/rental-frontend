@@ -45,10 +45,14 @@ function AddListing() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', 'diom_unsigned');
-
+  
     const res = await axios.post('https://api.cloudinary.com/v1_1/dgpzat6o4/image/upload', formData);
-    return res.data.secure_url;
+    return res.data.secure_url.replace(
+      '/upload/',
+      '/upload/w_1600,h_1200,c_fill,f_auto,q_auto/'
+    );
   };
+  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
