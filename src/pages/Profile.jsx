@@ -5,7 +5,14 @@ const Profile = () => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', bio: '', profilePic: '' });
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    bio: '',
+    profilePic: '',
+    idImage: ''
+  });
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -18,8 +25,10 @@ const Profile = () => {
         setForm({
           name: data.name,
           email: data.email,
+          phone: data.phone || '',
           bio: data.bio || '',
           profilePic: data.profilePic || 'https://i.pravatar.cc/150?img=12',
+          idImage: data.idImage || ''
         });
       } catch (err) {
         console.error('❌ Failed to load profile', err);
@@ -31,6 +40,27 @@ const Profile = () => {
   }, []);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleImageUpload = async (e, type) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'diom_unsigned');
+
+    const res = await fetch('https://api.cloudinary.com/v1_1/dgpzat6o4/image/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await res.json();
+    if (type === 'profile') {
+      setForm((prev) => ({ ...prev, profilePic: data.secure_url }));
+    } else if (type === 'id') {
+      setForm((prev) => ({ ...prev, idImage: data.secure_url }));
+    }
+  };
 
   const handleUpdate = async () => {
     try {
@@ -45,24 +75,6 @@ const Profile = () => {
       console.error('❌ Échec MAJ:', err);
       alert('Erreur MAJ profil');
     }
-  };
-
-  const handleImageChange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', 'YOUR_UPLOAD_PRESET'); // <- Replace
-    formData.append('cloud_name', 'YOUR_CLOUD_NAME'); // <- Replace
-
-    const res = await fetch('https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/image/upload', {
-      method: 'POST',
-      body: formData,
-    });
-
-    const data = await res.json();
-    setForm((prev) => ({ ...prev, profilePic: data.secure_url }));
   };
 
   if (loading) return <p style={styles.center}>Chargement...</p>;
@@ -110,7 +122,7 @@ const Profile = () => {
             <input
               type="file"
               accept="image/*"
-              onChange={handleImageChange}
+              onChange={(e) => handleImageUpload(e, 'profile')}
               style={{ marginTop: '0.5rem' }}
             />
           )}
@@ -120,7 +132,19 @@ const Profile = () => {
 
         {renderInput('name', 'Nom')}
         {renderInput('email', 'Email')}
+        {renderInput('phone', 'Téléphone')}
         {renderInput('bio', 'Bio', true)}
+
+        {/* ID Upload */}
+        {editing && (
+          <div style={styles.field}>
+            <label style={styles.label}>📄 Carte d'identité (facultatif)</label>
+            <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'id')} />
+            {form.idImage && (
+              <img src={form.idImage} alt="ID" style={{ marginTop: '1rem', maxWidth: '100%', borderRadius: '8px' }} />
+            )}
+          </div>
+        )}
 
         <button
           onClick={editing ? handleUpdate : () => setEditing(true)}
@@ -139,12 +163,12 @@ const baseInput = {
   borderRadius: '6px',
   border: '1px solid #ccc',
   fontSize: '1rem',
-  background: '#f9f9f9',
+  backgroundColor: '#f9f9f9',
 };
 
 const styles = {
-  container: { padding: '2rem', display: 'flex', justifyContent: 'center', background: '#f7f9fc', minHeight: '100vh' },
-  card: { background: 'white', padding: '2rem', borderRadius: '12px', width: '100%', maxWidth: '500px', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' },
+  container: { padding: '2rem', display: 'flex', justifyContent: 'center', backgroundColor: '#f7f9fc', minHeight: '100vh' },
+  card: { backgroundColor: 'white', padding: '2rem', borderRadius: '12px', width: '100%', maxWidth: '500px', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' },
   center: { textAlign: 'center', padding: '2rem' },
   title: { textAlign: 'center', fontSize: '1.75rem', fontWeight: '600', marginBottom: '1rem' },
   field: { marginBottom: '1.25rem' },

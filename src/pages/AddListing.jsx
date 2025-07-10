@@ -15,8 +15,8 @@ function AddListing() {
   const [thumbnailIndex, setThumbnailIndex] = useState(0);
   const [description, setDescription] = useState('');
   const [phone, setPhone] = useState('');
+  const [hasPhoneOnFile, setHasPhoneOnFile] = useState(false);
   const [discountPrice, setDiscountPrice] = useState('');
-
   const [isApproved, setIsApproved] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -28,6 +28,10 @@ function AddListing() {
           headers: { Authorization: `Bearer ${token}` },
         });
         setIsApproved(res.data.approved);
+        if (res.data.phone) {
+          setPhone(res.data.phone.replace('+225', ''));
+          setHasPhoneOnFile(true);
+        }
       } catch (err) {
         console.error('Erreur récupération utilisateur :', err);
       } finally {
@@ -36,18 +40,6 @@ function AddListing() {
     };
     fetchUser();
   }, []);
-
-  const handleRequestApproval = async () => {
-    const token = localStorage.getItem('token');
-    try {
-      await axios.post('https://rental-backend-uqo8.onrender.com/api/requests', {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      alert('Demande envoyée à l’administrateur.');
-    } catch (err) {
-      alert(err.response?.data?.message || 'Erreur lors de la demande');
-    }
-  };
 
   const uploadImageToCloudinary = async (file) => {
     const formData = new FormData();
@@ -61,22 +53,15 @@ function AddListing() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (phone.length !== 10 || !/^[0-9]+$/.test(phone)) {
-      alert("Le numéro doit contenir exactement 10 chiffres.");
+    if (!/^[0-9]+$/.test(phone) || (phone.length !== 10 && phone.length !== 8)) {
+      alert("Le numéro doit contenir 8 ou 10 chiffres.");
       return;
     }
 
     try {
       const token = localStorage.getItem('token');
-
-      const reorderedImages = [
-        images[thumbnailIndex],
-        ...images.filter((_, idx) => idx !== thumbnailIndex),
-      ];
-
-      const uploadedImageUrls = await Promise.all(
-        reorderedImages.map(file => uploadImageToCloudinary(file))
-      );
+      const reorderedImages = [images[thumbnailIndex], ...images.filter((_, idx) => idx !== thumbnailIndex)];
+      const uploadedImageUrls = await Promise.all(reorderedImages.map(file => uploadImageToCloudinary(file)));
 
       const newListing = {
         title,
@@ -106,42 +91,21 @@ function AddListing() {
   if (loading) return <p>Chargement...</p>;
 
   if (!isApproved) {
-    return (
-      <div style={styles.container}>
-        <h2>Accès restreint</h2>
-        <p>Vous n’êtes pas encore autorisé à publier des annonces.</p>
-        <button onClick={handleRequestApproval} style={styles.button}>
-          Demander l’autorisation
-        </button>
-      </div>
-    );
+    navigate('/request-host');
+    return null;
   }
 
   return (
     <div style={styles.container}>
       <h2 style={styles.title}>Ajouter une annonce</h2>
-
       <form onSubmit={handleSubmit} style={styles.form}>
         <input type="text" placeholder="Titre" value={title} onChange={(e) => setTitle(e.target.value)} required style={styles.input} />
 
         <div style={styles.grid2}>
           <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
             <span style={{ marginRight: 4 }}>FCFA</span>
-            <input
-              type="number"
-              placeholder="Prix"
-              value={price}
-              onChange={(e) => setPrice(e.target.value.replace(/[^\d]/g, ''))}
-              required
-              style={styles.input}
-            />
-            <input
-              type="number"
-              placeholder="Prix remisé"
-              value={discountPrice}
-              onChange={(e) => setDiscountPrice(e.target.value)}
-              style={styles.input}
-            />
+            <input type="number" placeholder="Prix" value={price} onChange={(e) => setPrice(e.target.value.replace(/[^\d]/g, ''))} required style={styles.input} />
+            <input type="number" placeholder="Prix remisé" value={discountPrice} onChange={(e) => setDiscountPrice(e.target.value)} style={styles.input} />
           </div>
 
           <select value={type} onChange={(e) => setType(e.target.value)} style={styles.input}>
@@ -157,68 +121,27 @@ function AddListing() {
 
         <input type="text" placeholder="Commune" value={commune} onChange={(e) => setCommune(e.target.value)} required style={styles.input} />
 
-        <input
-          type="text"
-          placeholder="Numéro de téléphone (ex: 0749494406)"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          required
-          style={styles.input}
-        />
+        {hasPhoneOnFile ? (
+          <input type="text" value={`+225${phone}`} disabled style={{ ...styles.input, backgroundColor: '#f5f5f5' }} />
+        ) : (
+          <input type="text" placeholder="Numéro de téléphone (ex: 0749494406)" value={phone} onChange={(e) => setPhone(e.target.value)} required style={styles.input} />
+        )}
 
-        <textarea
-          placeholder="Description détaillée du logement..."
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={5}
-          required
-          style={{ ...styles.input, resize: 'vertical' }}
-        />
+        <textarea placeholder="Description détaillée du logement..." value={description} onChange={(e) => setDescription(e.target.value)} rows={5} required style={{ ...styles.input, resize: 'vertical' }} />
 
-        <input
-          type="file"
-          multiple
-          accept="image/*"
-          onChange={(e) => {
-            const files = Array.from(e.target.files);
-            setImages(prev => [...prev, ...files]);
-          }}
-          style={styles.input}
-        />
+        <input type="file" multiple accept="image/*" onChange={(e) => setImages(prev => [...prev, ...Array.from(e.target.files)])} style={styles.input} />
 
         {images.length > 0 && (
           <div style={styles.previewGrid}>
             {images.map((file, idx) => (
-              <div
-                key={idx}
-                style={{
-                  ...styles.previewWrapper,
-                  border: idx === thumbnailIndex ? '2px solid #007bff' : '1px solid #ccc',
-                }}
-                title={idx === thumbnailIndex ? 'Image principale' : 'Cliquez pour définir comme miniature'}
-              >
-                <img
-                  src={URL.createObjectURL(file)}
-                  alt={`preview ${idx}`}
-                  style={styles.previewImage}
-                  onClick={() => setThumbnailIndex(idx)}
-                />
+              <div key={idx} style={{ ...styles.previewWrapper, border: idx === thumbnailIndex ? '2px solid #007bff' : '1px solid #ccc' }}>
+                <img src={URL.createObjectURL(file)} alt={`preview ${idx}`} style={styles.previewImage} onClick={() => setThumbnailIndex(idx)} />
                 {idx === thumbnailIndex && <div style={styles.thumbnailTag}>Principale</div>}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setImages(prev => prev.filter((_, i) => i !== idx));
-                    if (idx === thumbnailIndex) {
-                      setThumbnailIndex(0);
-                    } else if (idx < thumbnailIndex) {
-                      setThumbnailIndex(prev => prev - 1);
-                    }
-                  }}
-                  style={styles.deleteButton}
-                >
-                  ×
-                </button>
+                <button type="button" onClick={() => {
+                  setImages(prev => prev.filter((_, i) => i !== idx));
+                  if (idx === thumbnailIndex) setThumbnailIndex(0);
+                  else if (idx < thumbnailIndex) setThumbnailIndex(prev => prev - 1);
+                }} style={styles.deleteButton}>×</button>
               </div>
             ))}
           </div>

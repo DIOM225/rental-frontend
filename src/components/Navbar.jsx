@@ -49,9 +49,12 @@ function Navbar() {
           </button>
         </>
       ) : (
-        <Link to="/auth" style={styles.link} onClick={() => setIsMobileMenuOpen(false)}>
-          Connexion / Inscription
-        </Link>
+        <>
+          <Link to="/loye" style={styles.link} onClick={() => setIsMobileMenuOpen(false)}>Loye</Link>
+          <Link to="/auth" style={styles.link} onClick={() => setIsMobileMenuOpen(false)}>
+            Connexion / Inscription
+          </Link>
+        </>
       )}
     </>
   );
@@ -60,7 +63,7 @@ function Navbar() {
     <nav style={styles.navbar}>
       <Link to="/" className="navbar-brand">
         <img src="/logo.png" alt="Apt Meuble" style={{ height: '80px' }} />
-        </Link>
+      </Link>
 
       {isMobile ? (
         <>

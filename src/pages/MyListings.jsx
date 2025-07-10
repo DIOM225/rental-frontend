@@ -38,27 +38,61 @@ function HostDashboard() {
         </div>
       ) : (
         <div style={styles.grid}>
-          {listings.map((listing) => (
-            <div key={listing._id} style={styles.card}>
-              <img
-                src={listing.images?.[0] || '/default.jpg'}
-                alt="listing"
-                style={styles.image}
-              />
-              <div style={styles.details}>
-                <h3>{listing.title}</h3>
-                <p style={styles.meta}>
-                  {listing.city} • ${listing.price} • <span style={listing.type === 'daily' ? styles.tagDaily : styles.tagMonthly}>{listing.type}</span>
-                </p>
-                <p style={styles.date}>Ajouté le {new Date(listing.createdAt).toLocaleDateString()}</p>
-              </div>
+          {listings.map((listing) => {
+            const hasDiscount = listing.discountPrice && listing.discountPrice < listing.price;
+            const averageRating = listing.reviews?.length
+              ? (
+                  listing.reviews.reduce((sum, r) => sum + (r.rating || 0), 0) /
+                  listing.reviews.length
+                ).toFixed(1)
+              : null;
 
-              <div style={styles.actions}>
-                <Link to={`/edit/${listing._id}`} style={styles.editBtn}>✏️ Modifier</Link>
-                <button onClick={() => handleDelete(listing._id)} style={styles.deleteBtn}>🗑 Supprimer</button>
+            return (
+              <div key={listing._id} style={styles.card}>
+                <img
+                  src={listing.images?.[0] || '/default.jpg'}
+                  alt="listing"
+                  style={styles.image}
+                />
+                <div style={styles.details}>
+                  <h3>{listing.title}</h3>
+                  <p style={styles.meta}>
+                    {listing.city} •{" "}
+                    {hasDiscount ? (
+                      <>
+                        <span style={styles.strikethrough}>${listing.price}</span>{" "}
+                        <span style={styles.discount}>${listing.discountPrice}</span>
+                      </>
+                    ) : (
+                      <>${listing.price}</>
+                    )} •{" "}
+                    <span style={listing.type === 'daily' ? styles.tagDaily : styles.tagMonthly}>
+                      {listing.type}
+                    </span>
+                  </p>
+
+                  {averageRating && (
+                    <p style={{ fontSize: '0.85rem', marginTop: '0.3rem' }}>
+                      ⭐️ {averageRating} ({listing.reviews.length} reviews)
+                    </p>
+                  )}
+
+                  {listing.views != null && (
+                    <p style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.3rem' }}>
+                      👁 {listing.views} views
+                    </p>
+                  )}
+
+                  <p style={styles.date}>Ajouté le {new Date(listing.createdAt).toLocaleDateString()}</p>
+                </div>
+
+                <div style={styles.actions}>
+                  <Link to={`/edit/${listing._id}`} style={styles.editBtn}>✏️ Modifier</Link>
+                  <button onClick={() => handleDelete(listing._id)} style={styles.deleteBtn}>🗑 Supprimer</button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -117,6 +151,15 @@ const styles = {
     color: '#666',
     fontSize: '0.95rem',
     marginTop: '0.4rem',
+  },
+  strikethrough: {
+    textDecoration: 'line-through',
+    color: 'red',
+    marginRight: '0.5rem',
+  },
+  discount: {
+    color: 'green',
+    fontWeight: 'bold',
   },
   date: {
     fontSize: '0.8rem',

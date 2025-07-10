@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
@@ -6,7 +6,10 @@ function EditListing() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [form, setForm] = useState(null);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const token = localStorage.getItem('token');
+  const messageRef = useRef(null);
 
   useEffect(() => {
     const fetchListing = async () => {
@@ -48,6 +51,8 @@ function EditListing() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    setSuccessMsg('');
+    setErrorMsg('');
   };
 
   const handleSubmit = async (e) => {
@@ -56,10 +61,11 @@ function EditListing() {
       await axios.put(`${process.env.REACT_APP_API_URL}/api/listings/${id}`, form, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      alert('✅ Annonce mise à jour !');
-      navigate('/my-listings');
+      setSuccessMsg('✅ Annonce mise à jour avec succès !');
+      messageRef.current?.scrollIntoView({ behavior: 'smooth' });
     } catch (err) {
-      alert('❌ Échec de la mise à jour');
+      setErrorMsg('❌ Échec de la mise à jour. Veuillez réessayer.');
+      messageRef.current?.scrollIntoView({ behavior: 'smooth' });
       console.error(err);
     }
   };
@@ -69,6 +75,7 @@ function EditListing() {
   return (
     <div style={{ padding: '2rem' }}>
       <h2>Modifier l'annonce</h2>
+
       <form
         onSubmit={handleSubmit}
         style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '600px' }}
@@ -117,6 +124,11 @@ function EditListing() {
           Mettre à jour
         </button>
       </form>
+
+      <div ref={messageRef} style={{ marginTop: '1rem', textAlign: 'center' }}>
+        {successMsg && <p style={{ color: 'green', fontWeight: 'bold' }}>{successMsg}</p>}
+        {errorMsg && <p style={{ color: 'red', fontWeight: 'bold' }}>{errorMsg}</p>}
+      </div>
     </div>
   );
 }

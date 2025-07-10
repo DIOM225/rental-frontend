@@ -5,33 +5,54 @@ import { useNavigate } from 'react-router-dom';
 function AuthPage() {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: '',
+  });
+
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+    setError('');
+    setSuccess('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!isLogin && form.password !== form.confirmPassword) {
+      setError('Les mots de passe ne correspondent pas.');
+      return;
+    }
+
     const endpoint = isLogin
       ? `${process.env.REACT_APP_API_URL}/api/auth/login`
       : `${process.env.REACT_APP_API_URL}/api/auth/register`;
 
-
     try {
-      const res = await axios.post(endpoint, form);
+      const payload = { ...form };
+      if (!isLogin) delete payload.confirmPassword;
+
+      const res = await axios.post(endpoint, payload);
+
       if (isLogin) {
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('user', JSON.stringify(res.data.user));
         navigate('/');
         window.location.reload();
       } else {
-        alert('Inscription réussie ! Vous pouvez maintenant vous connecter.');
+        setSuccess('✅ Inscription réussie ! Vous pouvez maintenant vous connecter.');
+        setForm({ name: '', email: '', phone: '', password: '', confirmPassword: '' });
         setIsLogin(true);
       }
-    } catch (error) {
-      alert('Erreur: ' + error.response?.data?.message || 'Quelque chose s’est mal passé');
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Une erreur est survenue';
+      setError(msg);
     }
   };
 
@@ -42,14 +63,26 @@ function AuthPage() {
 
         <form onSubmit={handleSubmit} style={styles.form}>
           {!isLogin && (
-            <input
-              type="text"
-              name="name"
-              placeholder="Nom complet"
-              value={form.name}
-              onChange={handleChange}
-              required
-            />
+            <>
+              <input
+                type="text"
+                name="name"
+                placeholder="Nom complet"
+                value={form.name}
+                onChange={handleChange}
+                required
+                style={styles.input}
+              />
+              <input
+                type="text"
+                name="phone"
+                placeholder="Téléphone"
+                value={form.phone}
+                onChange={handleChange}
+                required
+                style={styles.input}
+              />
+            </>
           )}
           <input
             type="email"
@@ -58,6 +91,8 @@ function AuthPage() {
             value={form.email}
             onChange={handleChange}
             required
+            autoComplete="email"
+            style={styles.input}
           />
           <input
             type="password"
@@ -66,7 +101,33 @@ function AuthPage() {
             value={form.password}
             onChange={handleChange}
             required
+            autoComplete={isLogin ? "current-password" : "new-password"}
+            style={{
+              ...styles.input,
+              borderColor:
+                !isLogin && error.includes('mots de passe') ? 'red' : '#ccc',
+            }}
           />
+          {!isLogin && (
+            <input
+              type="password"
+              name="confirmPassword"
+              placeholder="Confirmez le mot de passe"
+              value={form.confirmPassword}
+              onChange={handleChange}
+              required
+              autoComplete="new-password"
+              style={{
+                ...styles.input,
+                borderColor:
+                  error.includes('mots de passe') ? 'red' : '#ccc',
+              }}
+            />
+          )}
+
+          {error && <p style={styles.error}>{error}</p>}
+          {success && <p style={styles.success}>{success}</p>}
+
           <button type="submit" style={styles.button}>
             {isLogin ? 'Se connecter' : 'S’inscrire'}
           </button>
@@ -76,7 +137,11 @@ function AuthPage() {
           {isLogin ? "Pas de compte ?" : "Vous avez déjà un compte ?"}{' '}
           <span
             style={styles.toggle}
-            onClick={() => setIsLogin(!isLogin)}
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setError('');
+              setSuccess('');
+            }}
           >
             {isLogin ? 'Inscription' : 'Connexion'}
           </span>
@@ -91,7 +156,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    height: '80vh',
+    height: '85vh',
   },
   card: {
     backgroundColor: '#fff',
@@ -108,6 +173,12 @@ const styles = {
     gap: '1rem',
     marginTop: '1rem',
   },
+  input: {
+    padding: '0.75rem',
+    borderRadius: '6px',
+    border: '1px solid #ccc',
+    fontSize: '1rem',
+  },
   button: {
     padding: '0.75rem',
     backgroundColor: '#007bff',
@@ -121,6 +192,18 @@ const styles = {
     color: '#007bff',
     cursor: 'pointer',
     textDecoration: 'underline',
+  },
+  error: {
+    color: 'red',
+    fontSize: '0.9rem',
+    marginTop: '-0.5rem',
+    textAlign: 'center',
+  },
+  success: {
+    color: 'green',
+    fontSize: '0.9rem',
+    marginTop: '-0.5rem',
+    textAlign: 'center',
   },
 };
 

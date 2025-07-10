@@ -17,7 +17,7 @@ function renderStars(avgRating) {
 function ListingCard({ listing, showStatus = false }) {
   if (!listing) return null;
 
-  const { _id, title, city, commune, type, price, images, reviews = [], status } = listing;
+  const { _id, title, city, commune, type, price, images, reviews = [], status, discountPrice } = listing;
 
   const mainImage = images && images.length > 0
     ? images[0]
@@ -28,20 +28,32 @@ function ListingCard({ listing, showStatus = false }) {
       ? Math.round(reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length)
       : 0;
 
+  const percentOff = discountPrice
+    ? Math.round((1 - discountPrice / price) * 100)
+    : 0;
+
   return (
     <Link to={`/listing/${_id}`} style={styles.linkWrapper}>
       <div style={styles.card}>
-        <img
-          src={optimizeImage(mainImage, 400, 300)}
-          width={400}
-          height={300}
-          style={styles.image}
-          loading="lazy"
-          alt={title}
-        />
+        <div style={styles.imageWrapper}>
+          <img
+            src={optimizeImage(mainImage, 400, 250)}
+            width={400}
+            height={250}
+            style={styles.image}
+            loading="lazy"
+            alt={title}
+          />
+
+          {/* 🔖 Promo badge overlay */}
+          {discountPrice && (
+            <div style={styles.promoBadge}>
+              -{percentOff}%
+            </div>
+          )}
+        </div>
 
         <div style={styles.details}>
-          {/* ✅ Status badge (optional) */}
           {showStatus && status && (
             <span
               style={{
@@ -58,13 +70,15 @@ function ListingCard({ listing, showStatus = false }) {
 
           <div style={styles.stars}>{renderStars(avgRating)}</div>
 
-          {/* 🏙️ City and Commune */}
           <p style={styles.address}>
             📍 {[city, commune].filter(Boolean).join(' • ')}
           </p>
 
           <p style={styles.type}>{type === 'monthly' ? 'Mensuel' : 'Journalier'}</p>
-          <p style={styles.price}>{price.toLocaleString()} FCFA {type === 'monthly' ? '/mois' : '/jour'}</p>
+
+          <p style={styles.price}>
+            {parseInt(discountPrice || price).toLocaleString()} FCFA {type === 'monthly' ? '/mois' : '/jour'}
+          </p>
         </div>
       </div>
     </Link>
@@ -77,59 +91,80 @@ const styles = {
     color: 'inherit',
     display: 'block',
     width: '100%',
-    maxWidth: '360px',
-    margin: '1rem auto',
+    maxWidth: '320px',
+    margin: '0 auto',
   },
   card: {
     border: '1px solid #ddd',
-    borderRadius: '10px',
+    borderRadius: '8px',
     overflow: 'hidden',
     backgroundColor: '#fff',
-    boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-    transition: 'transform 0.2s ease',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  imageWrapper: {
+    position: 'relative',
   },
   image: {
     width: '100%',
-    height: '200px',
+    height: '180px',
     objectFit: 'cover',
   },
+  promoBadge: {
+    position: 'absolute',
+    top: '8px',
+    left: '8px',
+    backgroundColor: '#ff4d4f',
+    color: '#fff',
+    fontSize: '0.65rem',
+    fontWeight: '700',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    zIndex: 1,
+  },
   details: {
-    padding: '1rem',
+    padding: '0.5rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.2rem',
   },
   badge: {
-    display: 'inline-block',
-    padding: '0.25rem 0.5rem',
-    fontSize: '0.75rem',
-    fontWeight: '600',
-    borderRadius: '4px',
-    marginBottom: '0.4rem',
-    textTransform: 'uppercase',
+    fontSize: '0.6rem',
+    fontWeight: 600,
+    padding: '1px 5px',
+    borderRadius: '3px',
+    alignSelf: 'flex-start',
   },
   title: {
-    fontSize: '1.1rem',
-    marginBottom: '0.5rem',
-    lineHeight: '1.3',
+    fontSize: '0.85rem',
+    fontWeight: '600',
+    lineHeight: '1.1',
+    margin: 0,
   },
   stars: {
     display: 'flex',
-    gap: '0.2rem',
-    marginBottom: '0.5rem',
+    gap: '0.1rem',
+    fontSize: '0.7rem',
+    margin: 0,
   },
   address: {
-    fontSize: '0.95rem',
+    fontSize: '0.75rem',
     color: '#555',
-    marginBottom: '0.3rem',
+    margin: 0,
+    lineHeight: '1.1',
   },
   type: {
-    fontSize: '0.9rem',
+    fontSize: '0.7rem',
     fontWeight: '500',
     color: '#007bff',
-    marginBottom: '0.3rem',
+    margin: 0,
   },
   price: {
-    fontSize: '1.05rem',
-    fontWeight: 'bold',
+    fontSize: '0.85rem',
+    fontWeight: '700',
     color: '#28a745',
+    margin: 0,
   },
 };
 
