@@ -15,16 +15,13 @@ function Navbar() {
     window.location.reload();
   };
 
-  // Listen to screen resize
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 768px)');
     const handleResize = (e) => setIsMobile(e.matches);
-
     mediaQuery.addEventListener('change', handleResize);
     return () => mediaQuery.removeEventListener('change', handleResize);
   }, []);
 
-  // Auto-close mobile menu on click
   const renderLinks = () => (
     <>
       <Link to="/daily" style={styles.link} onClick={() => setIsMobileMenuOpen(false)}>Residence</Link>
@@ -49,12 +46,9 @@ function Navbar() {
           </button>
         </>
       ) : (
-        <>
-          <Link to="/loye" style={styles.link} onClick={() => setIsMobileMenuOpen(false)}>Loye</Link>
-          <Link to="/auth" style={styles.link} onClick={() => setIsMobileMenuOpen(false)}>
-            Connexion / Inscription
-          </Link>
-        </>
+        <Link to="/auth" style={styles.link} onClick={() => setIsMobileMenuOpen(false)}>
+          Connexion / Inscription
+        </Link>
       )}
     </>
   );
@@ -62,7 +56,7 @@ function Navbar() {
   return (
     <nav style={styles.navbar}>
       <Link to="/" className="navbar-brand">
-        <img src="/logo.png" alt="Apt Meuble" style={{ height: '80px' }} />
+        <img src="/logo.png" alt="Apt Meuble" style={{ height: '95px' }} />
       </Link>
 
       {isMobile ? (
@@ -96,18 +90,14 @@ const styles = {
     top: 0,
     zIndex: 1000,
     backgroundColor: '#fff',
-    padding: '1rem 2rem',
+    padding: '0rem 0.75rem',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottom: '1px solid #eee',
     boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
-  },
-  logo: {
-    textDecoration: 'none',
-    fontSize: '1.5rem',
-    fontWeight: 'bold',
-    color: '#007bff',
+    minHeight: '80px',
+    height: '80px'
   },
   hamburger: {
     fontSize: '1.8rem',
@@ -127,11 +117,11 @@ const styles = {
     left: 0,
     right: 0,
     backgroundColor: '#fff',
-    padding: '1rem 2rem',
+    padding: '0.5rem 1rem',
     boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
     display: 'flex',
     flexDirection: 'column',
-    gap: '1rem',
+    gap: '0.4rem',
     alignItems: 'flex-start',
     animation: 'fadeIn 0.3s ease-in-out',
   },
@@ -139,7 +129,8 @@ const styles = {
     textDecoration: 'none',
     color: '#333',
     fontWeight: '500',
-    padding: '0.5rem 1rem',
+    fontSize: '0.9rem',
+    padding: '0.35rem 0.75rem',
     borderRadius: '5px',
     transition: 'background 0.2s ease',
   },
@@ -147,10 +138,11 @@ const styles = {
     backgroundColor: '#dc3545',
     color: 'white',
     border: 'none',
-    padding: '0.5rem 1rem',
+    padding: '0.35rem 0.75rem',
     borderRadius: '5px',
     cursor: 'pointer',
     fontWeight: '500',
+    fontSize: '0.9rem',
   },
 };
 

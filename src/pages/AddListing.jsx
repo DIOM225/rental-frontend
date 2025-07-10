@@ -19,6 +19,7 @@ function AddListing() {
   const [discountPrice, setDiscountPrice] = useState('');
   const [isApproved, setIsApproved] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -45,14 +46,9 @@ function AddListing() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', 'diom_unsigned');
-  
     const res = await axios.post('https://api.cloudinary.com/v1_1/dgpzat6o4/image/upload', formData);
-    return res.data.secure_url.replace(
-      '/upload/',
-      '/upload/w_1600,h_1200,c_fill,f_auto,q_auto/'
-    );
+    return res.data.secure_url;
   };
-  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -63,6 +59,7 @@ function AddListing() {
     }
 
     try {
+      setIsSubmitting(true);
       const token = localStorage.getItem('token');
       const reorderedImages = [images[thumbnailIndex], ...images.filter((_, idx) => idx !== thumbnailIndex)];
       const uploadedImageUrls = await Promise.all(reorderedImages.map(file => uploadImageToCloudinary(file)));
@@ -89,6 +86,8 @@ function AddListing() {
     } catch (error) {
       console.error('❌ Erreur création annonce:', error);
       alert("Erreur lors de l'ajout de l'annonce.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -151,7 +150,9 @@ function AddListing() {
           </div>
         )}
 
-        <button type="submit" style={styles.button}>Ajouter</button>
+        <button type="submit" style={styles.button} disabled={isSubmitting}>
+          {isSubmitting ? <span className="loader"></span> : 'Ajouter'}
+        </button>
       </form>
     </div>
   );
