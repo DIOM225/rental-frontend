@@ -1,7 +1,7 @@
 import React, { Suspense, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import axios from '../utils/axiosInstance';
 import { FaStar } from 'react-icons/fa';
 import 'yet-another-react-lightbox/styles.css';
 import './PropertyDetail.css';

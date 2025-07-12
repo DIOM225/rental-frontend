@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import axios from '../../utils/axiosInstance';
+
 import ListingCard from '../../components/ListingCard';
 
 function PopularListings() {

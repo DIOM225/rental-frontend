@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import axios from '../../utils/axiosInstance';
 import {
   Box,
   Tabs,
   Tab,
   Typography,
-
   Card,
   CardContent,
   Button,
@@ -61,9 +60,13 @@ function Dashboard() {
   const handleApprove = async (requestId) => {
     const token = localStorage.getItem('token');
     try {
-      await axios.patch(`https://rental-backend-uqo8.onrender.com/api/requests/${requestId}/approve`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await axios.patch(
+        `https://rental-backend-uqo8.onrender.com/api/requests/${requestId}/approve`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
       setRequests(prev =>
         prev.map(req =>
@@ -125,18 +128,36 @@ function Dashboard() {
                   <Typography variant="h6">{req.userId?.name || '—'}</Typography>
                   <Typography variant="body2">{req.userId?.email}</Typography>
                   <Typography variant="body2">Statut: {req.status}</Typography>
+
+                  {req.userId?.idImage && (
+                    <Box mt={2}>
+                      <Typography variant="caption">Carte d'identité:</Typography>
+                      <img
+                        src={req.userId.idImage}
+                        alt="ID"
+                        style={{
+                          width: '100%',
+                          maxHeight: 200,
+                          objectFit: 'cover',
+                          borderRadius: 6,
+                          marginTop: 4,
+                        }}
+                      />
+                    </Box>
+                  )}
+
                   {req.status === 'pending' ? (
                     <Button
                       variant="contained"
                       color="primary"
                       size="small"
-                      sx={{ mt: 1 }}
+                      sx={{ mt: 2 }}
                       onClick={() => handleApprove(req._id)}
                     >
                       Approuver
                     </Button>
                   ) : (
-                    <Typography sx={{ mt: 1 }} color="success.main">
+                    <Typography sx={{ mt: 2 }} color="success.main">
                       ✅ Approuvé
                     </Typography>
                   )}

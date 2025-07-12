@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import axios from '../../utils/axiosInstance';
 
 function Listings() {
   const [listings, setListings] = useState([]);
@@ -40,6 +40,12 @@ function Listings() {
     }
   };
 
+  const getThumbnail = (listing) => {
+    if (listing.image) return listing.image;
+    if (Array.isArray(listing.images) && listing.images.length > 0) return listing.images[0];
+    return null;
+  };
+
   if (loading) return <p style={{ padding: '2rem' }}>Chargement des annonces...</p>;
 
   return (
@@ -50,16 +56,34 @@ function Listings() {
         <p>Aucune annonce trouvée.</p>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0 }}>
-          {listings.map((l) => (
-            <li key={l._id} style={styles.card}>
-              <div>
-                <strong>{l.title}</strong> – {l.city} – ${l.price}
-              </div>
-              <button onClick={() => handleDelete(l._id)} style={styles.deleteButton}>
-                Supprimer
-              </button>
-            </li>
-          ))}
+          {listings.map((l) => {
+            const imageUrl = getThumbnail(l);
+
+            return (
+              <li key={l._id} style={styles.card}>
+                <div style={styles.info}>
+                  {imageUrl && (
+                    <img
+                      src={imageUrl}
+                      alt={l.title}
+                      style={styles.image}
+                    />
+                  )}
+                  <div>
+                    <strong>{l.title}</strong> – {l.city || ''} – ${l.price}
+                    <div style={{ fontSize: '0.85rem', marginTop: '0.3rem', color: '#555' }}>
+                      {l.userId?.name && <>👤 {l.userId.name}<br /></>}
+                      {l.userId?.phone && <>📞 {l.userId.phone}</>}
+                    </div>
+                  </div>
+
+                </div>
+                <button onClick={() => handleDelete(l._id)} style={styles.deleteButton}>
+                  Supprimer
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
@@ -76,6 +100,17 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center'
+  },
+  info: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem'
+  },
+  image: {
+    width: '80px',
+    height: '60px',
+    objectFit: 'cover',
+    borderRadius: '4px'
   },
   deleteButton: {
     background: '#dc3545',
