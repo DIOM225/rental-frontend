@@ -9,7 +9,7 @@ function Listings() {
   const fetchListings = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('https://rental-backend-uqo8.onrender.com/api/admin/listings', {
+      const res = await axios.get('https://rental-backend-uqo8.onrender.com/api/listings/admin/listings', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setListings(res.data);
@@ -25,7 +25,6 @@ function Listings() {
     fetchListings();
   }, []);
 
-  // 👁️ Log whenever a listing is selected
   useEffect(() => {
     if (selectedListing) {
       console.log('📦 Selected listing:', selectedListing);
@@ -89,7 +88,7 @@ function Listings() {
                 </div>
                 <button
                   onClick={(e) => {
-                    e.stopPropagation(); // prevent opening modal
+                    e.stopPropagation();
                     handleDelete(l._id);
                   }}
                   style={styles.deleteButton}
@@ -109,12 +108,14 @@ function Listings() {
             <p><strong>Titre:</strong> {selectedListing.title}</p>
             <p><strong>Ville:</strong> {selectedListing.city}</p>
             <p><strong>Prix:</strong> ${selectedListing.price}</p>
+
             {selectedListing.userId?.name && (
               <p><strong>👤 Nom:</strong> {selectedListing.userId.name}</p>
             )}
             {selectedListing.userId?.phone && (
               <p><strong>📞 Téléphone:</strong> {selectedListing.userId.phone}</p>
             )}
+
             <button onClick={closeModal} style={styles.closeButton}>Fermer</button>
           </div>
         </div>
