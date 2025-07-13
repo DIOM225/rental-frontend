@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from '../utils/axiosInstance';
-
+import axiosBase from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 function AddListing() {
@@ -47,7 +47,10 @@ function AddListing() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', 'diom_unsigned');
-    const res = await axios.post('https://api.cloudinary.com/v1_1/dgpzat6o4/image/upload', formData);
+    const res = await axiosBase.post(
+      'https://api.cloudinary.com/v1_1/dgpzat6o4/image/upload',
+      formData
+    );
     return res.data.secure_url;
   };
 
@@ -114,7 +117,7 @@ function AddListing() {
 
           <select value={type} onChange={(e) => setType(e.target.value)} style={styles.input}>
             <option value="monthly">Mensuel</option>
-            <option value="daily">Journalière</option>
+            <option value="daily">Residence</option>
           </select>
         </div>
 
