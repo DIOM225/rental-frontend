@@ -155,7 +155,7 @@ function AddListing() {
         )}
 
         <button type="submit" style={styles.button} disabled={isSubmitting}>
-          {isSubmitting ? <span className="loader"></span> : 'Ajouter'}
+        {isSubmitting ? <div style={spinnerStyle}></div> : 'Ajouter'}
         </button>
       </form>
     </div>
@@ -252,5 +252,28 @@ const styles = {
     cursor: 'pointer',
   },
 };
+
+const spinnerStyle = {
+  width: '22px',
+  height: '22px',
+  border: '3px solid white',
+  borderTop: '3px solid #007bff',
+  borderRadius: '50%',
+  animation: 'spin 1s linear infinite',
+  margin: '0 auto'
+};
+
+// Inject keyframes for spinning animation (only once)
+if (typeof document !== 'undefined' && !document.getElementById('spinner-style')) {
+  const style = document.createElement('style');
+  style.id = 'spinner-style';
+  style.innerHTML = `
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  `;
+  document.head.appendChild(style);
+}
 
 export default AddListing;
