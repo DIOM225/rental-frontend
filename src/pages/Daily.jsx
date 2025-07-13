@@ -76,7 +76,7 @@ function Daily() {
   return (
     <div style={{ padding: '1rem', maxWidth: '1200px', margin: '0 auto' }}>
       <h2 style={{ textAlign: 'center', fontSize: '1.6rem', marginBottom: '1.5rem' }}>
-        Locations Journalières
+        Residence
       </h2>
 
       <form
