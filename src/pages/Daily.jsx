@@ -86,7 +86,7 @@ function Daily() {
         <input
           type="text"
           value={inputValue}
-          placeholder="Rechercher par commune..."
+          placeholder="Rechercher..."
           onChange={(e) => setInputValue(e.target.value)}
           style={{
             padding: '0.75rem 1rem',

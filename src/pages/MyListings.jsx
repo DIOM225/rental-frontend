@@ -60,11 +60,17 @@ function HostDashboard() {
                     {listing.city} •{" "}
                     {hasDiscount ? (
                       <>
-                        <span style={styles.strikethrough}>${listing.price}</span>{" "}
-                        <span style={styles.discount}>${listing.discountPrice}</span>
+                        <span style={styles.strikethrough}>
+                          {listing.price.toLocaleString('fr-FR').replace(/\s/g, '.')} FCFA
+                        </span>{" "}
+                        <span style={styles.discount}>
+                          {listing.discountPrice.toLocaleString('fr-FR').replace(/\s/g, '.')} FCFA
+                        </span>
                       </>
                     ) : (
-                      <>${listing.price}</>
+                      <>
+                        {listing.price.toLocaleString('fr-FR').replace(/\s/g, '.')} FCFA
+                      </>
                     )} •{" "}
                     <span style={listing.type === 'daily' ? styles.tagDaily : styles.tagMonthly}>
                       {listing.type}

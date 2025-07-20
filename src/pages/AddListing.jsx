@@ -12,6 +12,7 @@ function AddListing() {
   const [commune, setCommune] = useState('');
   const [price, setPrice] = useState('');
   const [type, setType] = useState('monthly');
+  const [pieces, setPieces] = useState('');
   const [images, setImages] = useState([]);
   const [thumbnailIndex, setThumbnailIndex] = useState(0);
   const [description, setDescription] = useState('');
@@ -26,7 +27,7 @@ function AddListing() {
     const fetchUser = async () => {
       const token = localStorage.getItem('token');
       try {
-        const res = await axios.get('https://rental-backend-uqo8.onrender.com/api/auth/me', {
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/auth/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setIsApproved(res.data.approved);
@@ -57,11 +58,6 @@ function AddListing() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!/^[0-9]+$/.test(phone) || (phone.length !== 10 && phone.length !== 8)) {
-      alert("Le numéro doit contenir 8 ou 10 chiffres.");
-      return;
-    }
-
     try {
       setIsSubmitting(true);
       const token = localStorage.getItem('token');
@@ -74,6 +70,7 @@ function AddListing() {
         city,
         commune,
         type,
+        pieces,
         price: Number(price),
         discountPrice: discountPrice || null,
         images: uploadedImageUrls,
@@ -81,7 +78,7 @@ function AddListing() {
         phone: `+225${phone}`,
       };
 
-      await axios.post('https://rental-backend-uqo8.onrender.com/api/listings', newListing, {
+      await axios.post(`${process.env.REACT_APP_API_URL}/api/listings`, newListing, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -96,7 +93,6 @@ function AddListing() {
   };
 
   if (loading) return <p>Chargement...</p>;
-
   if (!isApproved) {
     navigate('/request-host');
     return null;
@@ -109,15 +105,23 @@ function AddListing() {
         <input type="text" placeholder="Titre" value={title} onChange={(e) => setTitle(e.target.value)} required style={styles.input} />
 
         <div style={styles.grid2}>
-          <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-            <span style={{ marginRight: 4 }}>FCFA</span>
-            <input type="number" placeholder="Prix" value={price} onChange={(e) => setPrice(e.target.value.replace(/[^\d]/g, ''))} required style={styles.input} />
-            <input type="number" placeholder="Prix remisé" value={discountPrice} onChange={(e) => setDiscountPrice(e.target.value)} style={styles.input} />
-          </div>
+          <input type="number" placeholder="Prix" value={price} onChange={(e) => setPrice(e.target.value.replace(/[^\d]/g, ''))} required style={styles.input} />
+          <input type="number" placeholder="Prix remisé (facultatif)" value={discountPrice} onChange={(e) => setDiscountPrice(e.target.value)} style={styles.input} />
+        </div>
 
-          <select value={type} onChange={(e) => setType(e.target.value)} style={styles.input}>
+        <div style={styles.grid2}>
+          <select value={type} onChange={(e) => setType(e.target.value)} required style={styles.input}>
             <option value="monthly">Mensuel</option>
-            <option value="daily">Residence</option>
+            <option value="daily">Résidence</option>
+          </select>
+
+          <select value={pieces} onChange={(e) => setPieces(e.target.value)} required style={styles.input}>
+            <option value="">Nombre de pièces</option>
+            <option value="Studio">Studio</option>
+            <option value="1 Pièce">1 Pièce</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4+">4+</option>
           </select>
         </div>
 
@@ -155,7 +159,7 @@ function AddListing() {
         )}
 
         <button type="submit" style={styles.button} disabled={isSubmitting}>
-        {isSubmitting ? <div style={spinnerStyle}></div> : 'Ajouter'}
+          {isSubmitting ? <div style={spinnerStyle}></div> : 'Ajouter'}
         </button>
       </form>
     </div>
@@ -260,10 +264,9 @@ const spinnerStyle = {
   borderTop: '3px solid #007bff',
   borderRadius: '50%',
   animation: 'spin 1s linear infinite',
-  margin: '0 auto'
+  margin: '0 auto',
 };
 
-// Inject keyframes for spinning animation (only once)
 if (typeof document !== 'undefined' && !document.getElementById('spinner-style')) {
   const style = document.createElement('style');
   style.id = 'spinner-style';

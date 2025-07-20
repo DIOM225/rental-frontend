@@ -17,7 +17,19 @@ function renderStars(avgRating) {
 function ListingCard({ listing, showStatus = false }) {
   if (!listing) return null;
 
-  const { _id, title, city, commune, type, price, images, reviews = [], status, discountPrice } = listing;
+  const {
+    _id,
+    title,
+    city,
+    commune,
+    type,
+    price,
+    images,
+    reviews = [],
+    status,
+    discountPrice,
+    pieces,
+  } = listing;
 
   const mainImage = images && images.length > 0
     ? images[0]
@@ -51,6 +63,11 @@ function ListingCard({ listing, showStatus = false }) {
               -{percentOff}%
             </div>
           )}
+
+          {/* ⭐ Stars on image - top right corner */}
+          <div style={styles.starsOverlay}>
+            {renderStars(avgRating)}
+          </div>
         </div>
 
         <div style={styles.details}>
@@ -68,13 +85,9 @@ function ListingCard({ listing, showStatus = false }) {
 
           <h3 style={styles.title}>{title}</h3>
 
-          <div style={styles.stars}>{renderStars(avgRating)}</div>
-
-          <p style={styles.address}>
-            📍 {[city, commune].filter(Boolean).join(' • ')}
+          <p style={styles.addressLine}>
+            📍 {[city, commune].filter(Boolean).join(' • ')} &nbsp;&nbsp; 🛏️ {pieces}
           </p>
-
-          <p style={styles.type}>{type === 'monthly' ? 'Mensuel' : 'Journalier'}</p>
 
           <p style={styles.price}>
             {parseInt(discountPrice || price).toLocaleString()} FCFA {type === 'monthly' ? '/mois' : '/jour'}
@@ -110,6 +123,8 @@ const styles = {
     width: '100%',
     height: '180px',
     objectFit: 'cover',
+    borderBottomLeftRadius: '8px',
+    borderBottomRightRadius: '8px',
   },
   promoBadge: {
     position: 'absolute',
@@ -122,6 +137,17 @@ const styles = {
     padding: '2px 6px',
     borderRadius: '4px',
     zIndex: 1,
+  },
+  starsOverlay: {
+    position: 'absolute',
+    top: '8px',
+    right: '8px',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    display: 'flex',
+    gap: '2px',
+    fontSize: '0.65rem',
   },
   details: {
     padding: '0.5rem',
@@ -142,23 +168,15 @@ const styles = {
     lineHeight: '1.1',
     margin: 0,
   },
-  stars: {
-    display: 'flex',
-    gap: '0.1rem',
-    fontSize: '0.7rem',
-    margin: 0,
-  },
-  address: {
+  addressLine: {
     fontSize: '0.75rem',
     color: '#555',
     margin: 0,
     lineHeight: '1.1',
-  },
-  type: {
-    fontSize: '0.7rem',
-    fontWeight: '500',
-    color: '#007bff',
-    margin: 0,
+    display: 'flex',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: '0.25rem',
   },
   price: {
     fontSize: '0.85rem',

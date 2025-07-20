@@ -40,7 +40,7 @@ function PropertyDetail({ isAdminPreview = false }) {
 
   const openWhatsApp = useCallback(() => {
     trackClick();
-    const adminNumber = process.env.REACT_APP_ADMIN_WHATSAPP || '2250745123456';
+    const adminNumber = process.env.REACT_APP_ADMIN_WHATSAPP ;
     const sanitized = adminNumber.replace(/\D/g, '');
     const message = encodeURIComponent(`Bonjour 👋, je suis intéressé par ce logement : ${window.location.href}`);
     window.open(`https://wa.me/${sanitized}?text=${message}`, '_blank');
@@ -221,7 +221,21 @@ function PropertyDetail({ isAdminPreview = false }) {
               {data.address} – {data.city} {data.commune && `, ${data.commune}`}
             </p>
             <p className="property-type">{data.type === 'monthly' ? 'Location Mensuelle' : 'Location Journalière'}</p>
-            <p className="property-price">{data.price.toLocaleString()} FCFA {data.type === 'monthly' ? '/ mois' : '/ jour'}</p>
+            {data.discountPrice ? (
+              <p className="property-price">
+                <span style={{ textDecoration: 'line-through', color: 'red', marginRight: '10px' }}>
+                  {data.price.toLocaleString()} FCFA
+                </span>
+                <span style={{ color: 'green', fontWeight: 'bold' }}>
+                  {data.discountPrice.toLocaleString()} FCFA {data.type === 'monthly' ? '/ mois' : '/ jour'}
+                </span>
+              </p>
+            ) : (
+              <p className="property-price">
+                {data.price.toLocaleString()} FCFA {data.type === 'monthly' ? '/ mois' : '/ jour'}
+              </p>
+            )}
+
           </>
         )}
 

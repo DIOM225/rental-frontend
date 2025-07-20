@@ -19,7 +19,7 @@ import Profile from './pages/Profile';
 import Messages from './pages/Messages';
 import HostDashboard from './pages/host/HostDashboard';
 import HostRequestForm from './pages/HostRequestForm';
-
+import ResetPassword from './pages/ResetPassword';
 // 🔹 Loye Pages
 import LoyeHome from './pages/loye/LoyeHome';
 import LoyeSignup from './pages/loye/LoyeSignup';
@@ -51,7 +51,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/request-host" element={<HostRequestForm />} />
-
+          <Route path="/reset-password" element={<ResetPassword />} />
           {/* 🔐 Protected Listing Detail Pages */}
           <Route
             path="/property/:id"
