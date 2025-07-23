@@ -5,41 +5,76 @@ function Listings() {
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedListing, setSelectedListing] = useState(null);
+  const [editorRatings, setEditorRatings] = useState({});
+  const [saveSuccess, setSaveSuccess] = useState({});
 
-  const fetchListings = async () => {
+  // ───────────────────── Fetch Listings (wrapped in effect) ─────────────────────
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get(
+          'https://rental-backend-uqo8.onrender.com/api/listings/admin/listings',
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setListings(res.data);
+      } catch (err) {
+        console.error('❌ Failed to load listings:', err);
+        alert('Erreur lors du chargement des annonces');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // ───────────────────── Pre-fill ratings when listings load ─────────────────────
+  useEffect(() => {
+    const initialRatings = {};
+    listings.forEach(l => {
+      initialRatings[l._id] = l.editorRating ?? '';
+    });
+    setEditorRatings(initialRatings);
+  }, [listings]);
+
+  // ───────────────────── Handle rating input change ─────────────────────
+  const handleRatingChange = (id, value) => {
+    setEditorRatings(prev => ({ ...prev, [id]: value }));
+  };
+
+  const saveEditorRating = async (id) => {
+    const token = localStorage.getItem('token');
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get('https://rental-backend-uqo8.onrender.com/api/listings/admin/listings', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setListings(res.data);
+      await axios.put(
+        `${process.env.REACT_APP_API_URL}/api/listings/${id}`,
+        { editorRating: Number(editorRatings[id]) },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setSaveSuccess(prev => ({ ...prev, [id]: true }));
+      setTimeout(() => {
+        setSaveSuccess(prev => {
+          const updated = { ...prev };
+          delete updated[id];
+          return updated;
+        });
+      }, 1500);
     } catch (err) {
-      console.error('❌ Failed to load listings:', err);
-      alert('Erreur lors du chargement des annonces');
-    } finally {
-      setLoading(false);
+      console.error(err);
+      alert('❌ Erreur lors de la sauvegarde');
     }
   };
 
-  useEffect(() => {
-    fetchListings();
-  }, []);
-
-  useEffect(() => {
-    if (selectedListing) {
-      console.log('📦 Selected listing:', selectedListing);
-    }
-  }, [selectedListing]);
-
+  // ───────────────────── Delete Listing ─────────────────────
   const handleDelete = async (id) => {
-    const confirm = window.confirm("Supprimer cette annonce ?");
-    if (!confirm) return;
-
+    if (!window.confirm('Supprimer cette annonce ?')) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`https://rental-backend-uqo8.onrender.com/api/admin/listings/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await axios.delete(
+        `https://rental-backend-uqo8.onrender.com/api/admin/listings/${id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       setListings(prev => prev.filter(l => l._id !== id));
     } catch (err) {
       console.error('❌ Failed to delete listing:', err);
@@ -47,15 +82,9 @@ function Listings() {
     }
   };
 
-  const getThumbnail = (listing) => {
-    if (listing.image) return listing.image;
-    if (Array.isArray(listing.images) && listing.images.length > 0) return listing.images[0];
-    return null;
-  };
-
   const closeModal = () => setSelectedListing(null);
 
-  if (loading) return <p style={{ padding: '2rem' }}>Chargement des annonces...</p>;
+  if (loading) return <p style={{ padding: '2rem' }}>Chargement des annonces…</p>;
 
   return (
     <div style={{ padding: '2rem' }}>
@@ -65,8 +94,9 @@ function Listings() {
         <p>Aucune annonce trouvée.</p>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0 }}>
-          {listings.map((l) => {
-            const imageUrl = getThumbnail(l);
+          {listings.map(l => {
+            const thumb = l.image || (Array.isArray(l.images) && l.images[0]);
+            const ratingValue = editorRatings[l._id] ?? '';
 
             return (
               <li
@@ -74,24 +104,44 @@ function Listings() {
                 style={styles.card}
                 onClick={() => setSelectedListing(l)}
               >
-                <div style={styles.info}>
-                  {imageUrl && (
-                    <img
-                      src={imageUrl}
-                      alt={l.title}
-                      style={styles.image}
-                    />
-                  )}
+                <div style={styles.left}>
+                  {thumb && <img src={thumb} alt={l.title} style={styles.thumb} />}
                   <div>
-                    <strong>{l.title}</strong> – {l.city || ''} – ${l.price}
+                    <strong>{l.title}</strong> – {l.city ?? ''} – {l.price} FCFA
+                    <div style={{ marginTop: '0.4rem' }}>
+                      Note&nbsp;
+                      <input
+                        type="number"
+                        min="0"
+                        max="10"
+                        step="0.5"
+                        value={ratingValue}
+                        onClick={e => e.stopPropagation()}
+                        onChange={e => handleRatingChange(l._id, e.target.value)}
+                        style={{ width: 60, marginRight: 6 }}
+                      />
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          saveEditorRating(l._id);
+                        }}
+                        style={styles.saveBtn}
+                      >
+                        💾
+                      </button>
+                      {saveSuccess[l._id] && (
+                        <span style={{ marginLeft: 6, color: 'green' }}>✅</span>
+                      )}
+                    </div>
                   </div>
                 </div>
+
                 <button
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation();
                     handleDelete(l._id);
                   }}
-                  style={styles.deleteButton}
+                  style={styles.deleteBtn}
                 >
                   Supprimer
                 </button>
@@ -102,21 +152,14 @@ function Listings() {
       )}
 
       {selectedListing && (
-        <div style={styles.modalBackdrop} onClick={closeModal}>
-          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <h3>Détails de l’annonce</h3>
-            <p><strong>Titre:</strong> {selectedListing.title}</p>
-            <p><strong>Ville:</strong> {selectedListing.city}</p>
-            <p><strong>Prix:</strong> ${selectedListing.price}</p>
-
-            {selectedListing.userId?.name && (
-              <p><strong>👤 Nom:</strong> {selectedListing.userId.name}</p>
-            )}
-            {selectedListing.userId?.phone && (
-              <p><strong>📞 Téléphone:</strong> {selectedListing.userId.phone}</p>
-            )}
-
-            <button onClick={closeModal} style={styles.closeButton}>Fermer</button>
+        <div style={styles.backdrop} onClick={closeModal}>
+          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+            <h3>{selectedListing.title}</h3>
+            <p><strong>Ville :</strong> {selectedListing.city}</p>
+            <p><strong>Prix :</strong> {selectedListing.price} FCFA</p>
+            {selectedListing.userId?.name && <p><strong>👤</strong> {selectedListing.userId.name}</p>}
+            {selectedListing.userId?.phone && <p><strong>📞</strong> {selectedListing.userId.phone}</p>}
+            <button onClick={closeModal} style={styles.closeBtn}>Fermer</button>
           </div>
         </div>
       )}
@@ -124,61 +167,64 @@ function Listings() {
   );
 }
 
+/* ───────────────────── Styles ───────────────────── */
 const styles = {
   card: {
     background: '#f9f9f9',
     border: '1px solid #ddd',
     padding: '1rem',
     marginBottom: '1rem',
-    borderRadius: '6px',
+    borderRadius: 6,
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     cursor: 'pointer'
   },
-  info: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem'
-  },
-  image: {
-    width: '80px',
-    height: '60px',
+  left: { display: 'flex', gap: 12 },
+  thumb: {
+    width: 80,
+    height: 60,
     objectFit: 'cover',
-    borderRadius: '4px'
+    borderRadius: 4
   },
-  deleteButton: {
-    background: '#dc3545',
-    color: 'white',
+  saveBtn: {
+    background: '#28a745',
+    color: '#fff',
     border: 'none',
-    padding: '0.5rem 1rem',
-    borderRadius: '4px',
+    borderRadius: 4,
+    padding: '0.25rem 0.5rem',
     cursor: 'pointer'
   },
-  modalBackdrop: {
+  deleteBtn: {
+    background: '#dc3545',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 4,
+    padding: '0.5rem 1rem',
+    cursor: 'pointer'
+  },
+  backdrop: {
     position: 'fixed',
-    top: 0, left: 0, right: 0, bottom: 0,
+    inset: 0,
     backgroundColor: 'rgba(0,0,0,0.5)',
     display: 'flex',
     justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000
+    alignItems: 'center'
   },
   modal: {
-    background: 'white',
+    background: '#fff',
     padding: '2rem',
-    borderRadius: '8px',
-    maxWidth: '400px',
-    width: '90%',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.3)'
+    borderRadius: 8,
+    maxWidth: 400,
+    width: '90%'
   },
-  closeButton: {
+  closeBtn: {
     marginTop: '1rem',
     padding: '0.5rem 1rem',
     border: 'none',
     background: '#333',
-    color: 'white',
-    borderRadius: '4px',
+    color: '#fff',
+    borderRadius: 4,
     cursor: 'pointer'
   }
 };

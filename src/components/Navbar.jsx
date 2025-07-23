@@ -32,9 +32,14 @@ function Navbar() {
           <Link to="/add" style={styles.link} onClick={() => setIsMobileMenuOpen(false)}>+ Ajouter</Link>
           <Link to="/my-listings" style={styles.link} onClick={() => setIsMobileMenuOpen(false)}>Mes Annonces</Link>
           <Link to="/profile" style={styles.link} onClick={() => setIsMobileMenuOpen(false)}>Profil</Link>
+
+          {/* 🔹 Loye appears only after login */}
+          <Link to="/loye" style={styles.link} onClick={() => setIsMobileMenuOpen(false)}>Loye</Link>
+
           {user?.role === 'admin' && (
             <Link to="/admin/dashboard" style={styles.link} onClick={() => setIsMobileMenuOpen(false)}>Admin</Link>
           )}
+
           <button
             onClick={() => {
               handleLogout();

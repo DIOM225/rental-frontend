@@ -1,129 +1,96 @@
-// 📄 src/pages/loye/OwnerProperties.jsx
-import React, { useEffect, useState, useCallback } from 'react';
-import axios from 'axios';
+// client/src/pages/loye/OwnerProperties.jsx
+import { useEffect, useState } from 'react';
+import axios from '../../utils/axiosInstance';
 
 function OwnerProperties() {
   const [properties, setProperties] = useState([]);
-  const [newProperty, setNewProperty] = useState({ name: '', address: '', rent: '' });
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
-  const token = localStorage.getItem('loyeToken');
-
-  const fetchProperties = useCallback(async () => {
-    try {
-      const res = await axios.get('http://localhost:5050/api/loye/properties', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setProperties(res.data);
-    } catch (err) {
-      setError('Failed to load properties');
-    }
-  }, [token]);
+  const [expandedPropertyId, setExpandedPropertyId] = useState(null);
 
   useEffect(() => {
+    const fetchProperties = async () => {
+      try {
+        const res = await axios.get('/api/loye/properties');
+        setProperties(res.data);
+      } catch (err) {
+        console.error('Erreur lors du chargement des propriétés:', err);
+      }
+    };
+
     fetchProperties();
-  }, [fetchProperties]);
+  }, []);
 
-  const handleChange = (e) => {
-    setNewProperty({ ...newProperty, [e.target.name]: e.target.value });
-  };
-
-  const handleAdd = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-
-    try {
-      await axios.post('http://localhost:5050/api/loye/properties', newProperty, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSuccess('Property added!');
-      setNewProperty({ name: '', address: '', rent: '' });
-      fetchProperties();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Error adding property');
-    }
+  const toggleExpand = (propertyId) => {
+    setExpandedPropertyId(prev => (prev === propertyId ? null : propertyId));
   };
 
   return (
-    <div style={{ padding: '2rem' }}>
-      <h2>🏘 My Properties</h2>
+    <div style={styles.container}>
+      <h2>Mes Propriétés</h2>
+      {properties.length === 0 ? (
+        <p>Aucune propriété trouvée.</p>
+      ) : (
+        <div style={styles.cardGrid}>
+          {properties.map((property) => (
+            <div key={property._id} style={styles.card}>
+              <div style={styles.cardHeader} onClick={() => toggleExpand(property._id)}>
+                <h3>{property.name}</h3>
+                <p>{property.address}</p>
+                <p><strong>{property.units.length}</strong> unité(s)</p>
+              </div>
 
-      {/* Add Property Form */}
-      <form onSubmit={handleAdd} style={{ marginBottom: '2rem' }}>
-        <input
-          type="text"
-          name="name"
-          placeholder="Property name"
-          value={newProperty.name}
-          onChange={handleChange}
-          required
-          style={inputStyle}
-        />
-        <input
-          type="text"
-          name="address"
-          placeholder="Address"
-          value={newProperty.address}
-          onChange={handleChange}
-          required
-          style={inputStyle}
-        />
-        <input
-          type="number"
-          name="rent"
-          placeholder="Monthly rent"
-          value={newProperty.rent}
-          onChange={handleChange}
-          required
-          style={inputStyle}
-        />
-        <button type="submit" style={buttonStyle}>Add Property</button>
-      </form>
-
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      {success && <p style={{ color: 'green' }}>{success}</p>}
-
-      {/* Display Properties */}
-      <ul>
-        {properties.map((property) => (
-          <li key={property._id} style={propertyStyle}>
-            <strong>{property.name}</strong><br />
-            📍 {property.address} <br />
-            💰 {property.rent} CFA / month
-          </li>
-        ))}
-      </ul>
+              {expandedPropertyId === property._id && (
+                <div style={styles.renterList}>
+                  <h4>Liste des locataires</h4>
+                  {property.units.map((unit, index) => (
+                    <div key={index} style={styles.renterItem}>
+                      <p><strong>Code :</strong> {unit.code}</p>
+                      <p><strong>Type :</strong> {unit.type}</p>
+                      <p><strong>Loyer :</strong> {unit.rent} FCFA</p>
+                      <p><strong>Occupé par :</strong> {unit.occupiedBy ? unit.occupiedBy : 'Non attribué'}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-const inputStyle = {
-  display: 'block',
-  marginBottom: '1rem',
-  padding: '0.6rem',
-  width: '100%',
-  maxWidth: '400px',
-  borderRadius: '5px',
-  border: '1px solid #ccc'
-};
-
-const buttonStyle = {
-  padding: '0.6rem 1rem',
-  backgroundColor: '#007bff',
-  color: '#fff',
-  border: 'none',
-  borderRadius: '5px',
-  cursor: 'pointer'
-};
-
-const propertyStyle = {
-  marginBottom: '1rem',
-  padding: '1rem',
-  border: '1px solid #ddd',
-  borderRadius: '8px',
-  backgroundColor: '#f9f9f9',
+const styles = {
+  container: {
+    maxWidth: '900px',
+    margin: '2rem auto',
+    padding: '1rem',
+  },
+  cardGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr',
+    gap: '1rem',
+  },
+  card: {
+    border: '1px solid #ccc',
+    borderRadius: '8px',
+    padding: '1rem',
+    backgroundColor: '#fefefe',
+    boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+    cursor: 'pointer',
+  },
+  cardHeader: {
+    marginBottom: '1rem',
+  },
+  renterList: {
+    padding: '1rem',
+    backgroundColor: '#f8f8f8',
+    borderTop: '1px solid #eee',
+    marginTop: '1rem',
+  },
+  renterItem: {
+    padding: '0.5rem 0',
+    borderBottom: '1px solid #ddd',
+  },
 };
 
 export default OwnerProperties;

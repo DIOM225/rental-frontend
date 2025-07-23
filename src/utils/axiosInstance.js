@@ -1,14 +1,16 @@
-// client/src/utils/axiosInstance.js
+// 📄 client/src/utils/axiosInstance.js
 import axios from 'axios';
+// Optional: If you’re using toast notifications
+// import { toast } from 'react-toastify';
 
 const instance = axios.create({
-  baseURL: 'https://rental-backend-uqo8.onrender.com/api',
+  baseURL: process.env.REACT_APP_API_URL || 'https://rental-backend-uqo8.onrender.com/api',
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Attach token automatically
+// ✅ Attach token to every request
 instance.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -17,15 +19,24 @@ instance.interceptors.request.use((config) => {
   return config;
 });
 
-// Redirect to login if token is expired or invalid
+// ✅ Global token expiration handler
 instance.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Optional toast
+      // toast.error('Session expirée. Veuillez vous reconnecter.');
+
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      localStorage.removeItem('user');
+
+      // Slight delay to show message if needed
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 1000);
     }
-    return Promise.reject(err);
+
+    return Promise.reject(error);
   }
 );
 

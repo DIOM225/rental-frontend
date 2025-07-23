@@ -1,9 +1,11 @@
+// client/src/App.js
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-
-// 🔹 Shared Layouts
+import { Analytics } from '@vercel/analytics/react';
+// 🔹 Shared Layouts & Guards
 import MainLayout from './components/MainLayout';
 import RequireAuth from './components/RequireAuth';
 import RequireAdmin from './components/RequireAdmin';
+import RequireLoyeRole from './components/RequireLoyeRole'; // ✅ role-based Loye guard
 
 // 🔹 User & Host Pages
 import Home from './pages/Home';
@@ -20,14 +22,11 @@ import Messages from './pages/Messages';
 import HostDashboard from './pages/host/HostDashboard';
 import HostRequestForm from './pages/HostRequestForm';
 import ResetPassword from './pages/ResetPassword';
-// 🔹 Loye Pages
-import LoyeHome from './pages/loye/LoyeHome';
-import LoyeSignup from './pages/loye/LoyeSignup';
-import LoyeLogin from './pages/loye/LoyeLogin';
-import LoyeDashboard from './pages/loye/LoyeDashboard';
-import LoyeLayout from './pages/loye/LoyeLayout';
-import OwnerProperties from './pages/loye/OwnerProperties';
 
+// 🔹 Embedded Loye Pages (Unified flow)
+import LoyeOnboarding from './pages/loye/LoyeOnboarding';
+import LoyeDashboard from './pages/loye/LoyeDashboard';
+import OwnerProperties from './pages/loye/OwnerProperties';
 
 // 🔹 Admin Pages
 import AdminLayout from './pages/admin/AdminLayout';
@@ -42,7 +41,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* 🏠 Main App Routes (with Apt Meuble Navbar) */}
+        {/* 🏠 Main App Routes */}
         <Route element={<MainLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/monthly" element={<Monthly />} />
@@ -52,23 +51,10 @@ function App() {
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/request-host" element={<HostRequestForm />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          {/* 🔐 Protected Listing Detail Pages */}
-          <Route
-            path="/property/:id"
-            element={
-              <RequireAuth>
-                <PropertyDetail />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/listing/:id"
-            element={
-              <RequireAuth>
-                <PropertyDetail />
-              </RequireAuth>
-            }
-          />
+
+          {/* 🔐 Protected Listing Routes */}
+          <Route path="/property/:id" element={<RequireAuth><PropertyDetail /></RequireAuth>} />
+          <Route path="/listing/:id" element={<RequireAuth><PropertyDetail /></RequireAuth>} />
 
           {/* 🔐 Protected User Routes */}
           <Route path="/messages" element={<RequireAuth><Messages /></RequireAuth>} />
@@ -78,7 +64,31 @@ function App() {
           <Route path="/edit/:id" element={<RequireAuth><EditListing /></RequireAuth>} />
           <Route path="/host/dashboard" element={<RequireAuth><HostDashboard /></RequireAuth>} />
 
-          {/* 🔐 Admin Routes */}
+          {/* 🟦 Loye Flow */}
+          <Route path="/loye/onboarding" element={<RequireAuth><LoyeOnboarding /></RequireAuth>} />
+          <Route
+            path="/loye/dashboard"
+            element={
+              <RequireAuth>
+                <RequireLoyeRole role="renter">
+                  <LoyeDashboard />
+                </RequireLoyeRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/loye/properties"
+            element={
+              <RequireAuth>
+                <RequireLoyeRole role={["owner", "manager"]}>
+                  <OwnerProperties />
+                </RequireLoyeRole>
+              </RequireAuth>
+            }
+          />
+          <Route path="/loye" element={<RequireAuth><LoyeOnboarding /></RequireAuth>} />
+
+          {/* 🛠 Admin Routes */}
           <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="users" element={<Users />} />
@@ -90,17 +100,6 @@ function App() {
           </Route>
         </Route>
 
-        {/* 🟦 Loye Section (separate layout) */}
-        <Route path="/loye">
-          <Route index element={<LoyeHome />} />
-          <Route path="signup" element={<LoyeSignup />} />
-          <Route path="login" element={<LoyeLogin />} />
-          <Route element={<LoyeLayout />}>
-            <Route path="dashboard" element={<LoyeDashboard />} />
-            <Route path="properties" element={<OwnerProperties />} />
-          </Route>
-        </Route>
-
         {/* ❌ 404 Fallback */}
         <Route
           path="*"
@@ -109,8 +108,11 @@ function App() {
               Page non trouvée
             </h2>
           }
+          
         />
+        
       </Routes>
+      <Analytics /> 
     </Router>
   );
 }
