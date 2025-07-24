@@ -1,6 +1,6 @@
 // client/src/App.js
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { Analytics } from '@vercel/analytics/react';
+
 // 🔹 Shared Layouts & Guards
 import MainLayout from './components/MainLayout';
 import RequireAuth from './components/RequireAuth';
@@ -112,7 +112,6 @@ function App() {
         />
         
       </Routes>
-      <Analytics /> 
     </Router>
   );
 }

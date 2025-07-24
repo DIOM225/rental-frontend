@@ -1,4 +1,3 @@
-// client/src/pages/loye/CreateProperty.jsx
 import { useState } from 'react';
 import axios from '../../utils/axiosInstance';
 
@@ -11,8 +10,8 @@ function CreateProperty() {
     '2br': { count: '', rent: '' },
     '3br': { count: '', rent: '' },
   });
-  const [ownerInfo, setOwnerInfo] = useState({ name: '', email: '', phone: '' });
   const [message, setMessage] = useState('');
+  const [inviteCodes, setInviteCodes] = useState(null);
   const [error, setError] = useState('');
   const user = JSON.parse(localStorage.getItem('user'));
 
@@ -27,6 +26,7 @@ function CreateProperty() {
     e.preventDefault();
     setMessage('');
     setError('');
+    setInviteCodes(null);
 
     try {
       const payload = {
@@ -46,13 +46,11 @@ function CreateProperty() {
         }
       }
 
-      // If manager, send owner details
-      if (user.loye.role === 'manager') {
-        payload.ownerInfo = ownerInfo;
-      }
-
       const res = await axios.post('/api/loye/properties', payload);
       setMessage(res.data.message);
+      if (res.data.inviteCodes) {
+        setInviteCodes(res.data.inviteCodes);
+      }
     } catch (err) {
       const msg = err.response?.data?.message || 'Erreur lors de la création.';
       setError(msg);
@@ -100,40 +98,21 @@ function CreateProperty() {
           </div>
         ))}
 
-        {user.loye.role === 'manager' && (
-          <div>
-            <h4>Informations du propriétaire</h4>
-            <input
-              type="text"
-              placeholder="Nom"
-              value={ownerInfo.name}
-              onChange={(e) => setOwnerInfo({ ...ownerInfo, name: e.target.value })}
-              style={styles.input}
-              required
-            />
-            <input
-              type="email"
-              placeholder="Email"
-              value={ownerInfo.email}
-              onChange={(e) => setOwnerInfo({ ...ownerInfo, email: e.target.value })}
-              style={styles.input}
-              required
-            />
-            <input
-              type="text"
-              placeholder="Téléphone"
-              value={ownerInfo.phone}
-              onChange={(e) => setOwnerInfo({ ...ownerInfo, phone: e.target.value })}
-              style={styles.input}
-              required
-            />
-          </div>
-        )}
-
         <button type="submit" style={styles.button}>Créer</button>
 
         {message && <p style={styles.success}>{message}</p>}
         {error && <p style={styles.error}>{error}</p>}
+
+        {inviteCodes && (
+          <div style={styles.inviteBox}>
+            {inviteCodes.ownerInviteCode && (
+              <p><strong>Code d’invitation du propriétaire :</strong> {inviteCodes.ownerInviteCode}</p>
+            )}
+            {inviteCodes.managerInviteCode && (
+              <p><strong>Code d’invitation du gestionnaire :</strong> {inviteCodes.managerInviteCode}</p>
+            )}
+          </div>
+        )}
       </form>
     </div>
   );
@@ -176,6 +155,14 @@ const styles = {
   },
   error: {
     color: 'red',
+  },
+  inviteBox: {
+    marginTop: '1rem',
+    backgroundColor: '#e6f7ff',
+    padding: '1rem',
+    border: '1px solid #91d5ff',
+    borderRadius: '6px',
+    color: '#003a8c',
   },
 };
 

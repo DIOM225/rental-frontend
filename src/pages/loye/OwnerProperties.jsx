@@ -1,10 +1,14 @@
 // client/src/pages/loye/OwnerProperties.jsx
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import axios from '../../utils/axiosInstance';
+import { useNavigate } from 'react-router-dom';
 
 function OwnerProperties() {
   const [properties, setProperties] = useState([]);
   const [expandedPropertyId, setExpandedPropertyId] = useState(null);
+  const [showOptions, setShowOptions] = useState(false);
+  const optionsRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProperties = async () => {
@@ -17,6 +21,18 @@ function OwnerProperties() {
     };
 
     fetchProperties();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (optionsRef.current && !optionsRef.current.contains(event.target)) {
+        setShowOptions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   const toggleExpand = (propertyId) => {
@@ -55,6 +71,21 @@ function OwnerProperties() {
           ))}
         </div>
       )}
+
+      {/* Floating + Button at Top Right */}
+      <div style={styles.floatingButton} onClick={() => setShowOptions(prev => !prev)}>
+        +
+      </div>
+      {showOptions && (
+        <div ref={optionsRef} style={styles.floatingMenu}>
+          <div style={styles.menuOption} onClick={() => navigate('/loye/create-property')}>
+            Créer Propriété
+          </div>
+          <div style={styles.menuOption} onClick={() => navigate('/loye/onboarding')}>
+            Entrer Code
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -64,6 +95,7 @@ const styles = {
     maxWidth: '900px',
     margin: '2rem auto',
     padding: '1rem',
+    position: 'relative',
   },
   cardGrid: {
     display: 'grid',
@@ -91,6 +123,46 @@ const styles = {
     padding: '0.5rem 0',
     borderBottom: '1px solid #ddd',
   },
+  floatingButton: {
+    position: 'fixed',
+    top: '100px',
+    right: '40px',
+    zIndex: 1000,
+    backgroundColor: '#007BFF',
+    color: 'white',
+    borderRadius: '50%',
+    width: '50px',
+    height: '50px',
+    fontSize: '2rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.2)',
+  },
+  floatingMenu: {
+    position: 'fixed',
+    top: '160px',
+    right: '40px',
+    backgroundColor: 'transparent',
+    zIndex: 1000,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: '0.5rem',
+  },
+  menuOption: {
+    backgroundColor: '#fff',
+    border: '1px solid #ddd',
+    borderRadius: '10px',
+    padding: '0.7rem 1rem',
+    fontSize: '1rem',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+    cursor: 'pointer',
+    fontWeight: 500,
+    width: 'fit-content',
+  },
+  
 };
 
 export default OwnerProperties;

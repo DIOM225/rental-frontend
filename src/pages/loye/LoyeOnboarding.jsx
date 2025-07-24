@@ -5,7 +5,7 @@ import axios from '../../utils/axiosInstance';
 function LoyeOnboarding() {
   const [step, setStep] = useState(1);
   const [role, setRole] = useState('');
-  const [hasInviteCode, setHasInviteCode] = useState(false);
+ 
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -33,7 +33,7 @@ function LoyeOnboarding() {
 
   const handleInviteDecision = (answer) => {
     if (answer === 'yes') {
-      setHasInviteCode(true);
+      
       setStep(2);
     } else {
       // Proceed directly without invite code
@@ -49,17 +49,17 @@ function LoyeOnboarding() {
     e.preventDefault();
     setLoading(true);
     setError('');
-
+  
     try {
       const res = await axios.post(
-        '/api/loye/onboarding',
+        '/api/loye/invite', // ✅ correct route
         { code },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
+  
       const updatedUser = { ...user, loye: { role: res.data.role } };
       localStorage.setItem('user', JSON.stringify(updatedUser));
-
+  
       if (res.data.role === 'renter') {
         navigate('/loye/dashboard');
       } else {
@@ -73,6 +73,7 @@ function LoyeOnboarding() {
       setLoading(false);
     }
   };
+  
 
   return (
     <div style={styles.container}>
