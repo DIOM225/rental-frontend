@@ -1,4 +1,3 @@
-// client/src/App.js
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 // 🔹 Shared Layouts & Guards
@@ -27,6 +26,8 @@ import ResetPassword from './pages/ResetPassword';
 import LoyeOnboarding from './pages/loye/LoyeOnboarding';
 import LoyeDashboard from './pages/loye/LoyeDashboard';
 import OwnerProperties from './pages/loye/OwnerProperties';
+import CreateProperty from './pages/loye/CreateProperty'; // ✅ Add CreateProperty page
+
 
 // 🔹 Admin Pages
 import AdminLayout from './pages/admin/AdminLayout';
@@ -86,6 +87,16 @@ function App() {
               </RequireAuth>
             }
           />
+          <Route
+            path="/loye/create"
+            element={
+              <RequireAuth>
+                <RequireLoyeRole role={["owner", "manager"]}>
+                  <CreateProperty />
+                </RequireLoyeRole>
+              </RequireAuth>
+            }
+          />
           <Route path="/loye" element={<RequireAuth><LoyeOnboarding /></RequireAuth>} />
 
           {/* 🛠 Admin Routes */}
@@ -108,9 +119,7 @@ function App() {
               Page non trouvée
             </h2>
           }
-          
         />
-        
       </Routes>
     </Router>
   );

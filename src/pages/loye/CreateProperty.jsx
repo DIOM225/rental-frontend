@@ -13,7 +13,7 @@ function CreateProperty() {
   const [message, setMessage] = useState('');
   const [inviteCodes, setInviteCodes] = useState(null);
   const [error, setError] = useState('');
-  const user = JSON.parse(localStorage.getItem('user'));
+  
 
   const handleUnitChange = (type, field, value) => {
     setUnits((prev) => ({

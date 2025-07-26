@@ -1,96 +1,113 @@
-// client/src/pages/loye/InviteCode.jsx
 import { useState } from 'react';
 import axios from '../../utils/axiosInstance';
-import { useNavigate } from 'react-router-dom';
 
-function InviteCode() {
+function InviteCodeModal({ onClose, onSuccess }) {
   const [code, setCode] = useState('');
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user'));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage('');
     setError('');
+    setLoading(true);
 
     try {
-      const res = await axios.post('/api/loye/invite', { code });
+      const res = await axios.post(
+        '/api/loye/invite',
+        { code },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
-      setMessage(res.data.message);
+      const updatedUser = { ...user, loye: { role: res.data.role } };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
 
-      // Save role locally if needed
-      const user = JSON.parse(localStorage.getItem('user')) || {};
-      user.loye = { ...(user.loye || {}), role: res.data.role };
-      localStorage.setItem('user', JSON.stringify(user));
-
-      // Redirect by role
-      if (res.data.role === 'owner' || res.data.role === 'manager') {
-        navigate('/loye/properties');
-      } else if (res.data.role === 'renter') {
-        navigate('/loye/dashboard');
-      }
+      onSuccess();
     } catch (err) {
-      const msg = err.response?.data?.message || 'Erreur lors de la soumission.';
+      const msg = err.response?.data?.message || 'Erreur. Réessayez.';
       setError(msg);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div style={styles.container}>
-      <h2>Entrer un Code d'Invitation</h2>
-      <form onSubmit={handleSubmit} style={styles.form}>
-        <input
-          type="text"
-          placeholder="Code d'invitation"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          required
-          style={styles.input}
-        />
-        <button type="submit" style={styles.button}>Soumettre</button>
-        {message && <p style={styles.success}>{message}</p>}
-        {error && <p style={styles.error}>{error}</p>}
-      </form>
+    <div style={styles.overlay}>
+      <div style={styles.modal}>
+        <h3>Entrer votre code</h3>
+        <form onSubmit={handleSubmit}>
+          <input
+            type="text"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="Code d'invitation"
+            required
+            style={styles.input}
+          />
+          <div style={styles.actions}>
+            <button type="button" onClick={onClose} style={styles.cancel}>
+              Annuler
+            </button>
+            <button type="submit" disabled={loading} style={styles.submit}>
+              {loading ? 'Validation...' : 'Valider'}
+            </button>
+          </div>
+          {error && <p style={{ color: 'red', marginTop: '0.5rem' }}>{error}</p>}
+        </form>
+      </div>
     </div>
   );
 }
 
 const styles = {
-  container: {
-    maxWidth: '500px',
-    margin: '3rem auto',
-    padding: '2rem',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    backgroundColor: '#f9f9f9',
-  },
-  form: {
+  overlay: {
+    position: 'fixed',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
     display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+  },
+  modal: {
+    backgroundColor: '#fff',
+    padding: '2rem',
+    borderRadius: '8px',
+    width: '100%',
+    maxWidth: '400px',
+    boxShadow: '0 0 10px rgba(0,0,0,0.2)',
   },
   input: {
-    padding: '0.8rem',
-    fontSize: '1rem',
+    width: '100%',
+    padding: '0.7rem',
+    marginTop: '1rem',
+    borderRadius: '5px',
     border: '1px solid #ccc',
-    borderRadius: '5px',
   },
-  button: {
-    padding: '0.8rem',
-    backgroundColor: '#007bff',
-    color: 'white',
-    fontSize: '1rem',
+  actions: {
+    marginTop: '1rem',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '1rem',
+  },
+  cancel: {
+    backgroundColor: '#ccc',
     border: 'none',
-    borderRadius: '5px',
+    padding: '0.5rem 1rem',
+    borderRadius: '4px',
     cursor: 'pointer',
   },
-  success: {
-    color: 'green',
-  },
-  error: {
-    color: 'red',
+  submit: {
+    backgroundColor: '#007BFF',
+    color: 'white',
+    border: 'none',
+    padding: '0.5rem 1.2rem',
+    borderRadius: '4px',
+    cursor: 'pointer',
   },
 };
 
-export default InviteCode;
+export default InviteCodeModal;

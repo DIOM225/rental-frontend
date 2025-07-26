@@ -5,38 +5,73 @@ import { useNavigate } from 'react-router-dom';
 
 function OwnerProperties() {
   const [properties, setProperties] = useState([]);
-  const [expandedPropertyId, setExpandedPropertyId] = useState(null);
-  const [showOptions, setShowOptions] = useState(false);
-  const optionsRef = useRef(null);
+  const [showActions, setShowActions] = useState(false);
+  const [showCodeInput, setShowCodeInput] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+  const actionRef = useRef(null);
   const navigate = useNavigate();
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user'));
+
+  const fetchProperties = async () => {
+    try {
+      const res = await axios.get('/api/loye/properties');
+      setProperties(res.data);
+    } catch (err) {
+      console.error('Erreur lors du chargement:', err);
+    }
+  };
 
   useEffect(() => {
-    const fetchProperties = async () => {
-      try {
-        const res = await axios.get('/api/loye/properties');
-        setProperties(res.data);
-      } catch (err) {
-        console.error('Erreur lors du chargement des propriétés:', err);
-      }
-    };
-
     fetchProperties();
   }, []);
 
+  // 🔸 Close floating menu on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (optionsRef.current && !optionsRef.current.contains(event.target)) {
-        setShowOptions(false);
+      if (actionRef.current && !actionRef.current.contains(event.target)) {
+        setShowActions(false);
+        setShowCodeInput(false);
       }
     };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const toggleExpand = (propertyId) => {
-    setExpandedPropertyId(prev => (prev === propertyId ? null : propertyId));
+  const handleInviteSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const res = await axios.post(
+        '/api/loye/onboarding',
+        { code: inviteCode },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const updatedUser = { ...user, loye: { role: res.data.role } };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+
+      setSuccess('Code accepté! Redirection...');
+      setTimeout(() => {
+        if (res.data.role === 'renter') {
+          navigate('/loye/dashboard');
+        } else {
+          navigate('/loye/properties');
+        }
+      }, 1200);
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Code invalide.';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -45,124 +80,140 @@ function OwnerProperties() {
       {properties.length === 0 ? (
         <p>Aucune propriété trouvée.</p>
       ) : (
-        <div style={styles.cardGrid}>
-          {properties.map((property) => (
-            <div key={property._id} style={styles.card}>
-              <div style={styles.cardHeader} onClick={() => toggleExpand(property._id)}>
-                <h3>{property.name}</h3>
-                <p>{property.address}</p>
-                <p><strong>{property.units.length}</strong> unité(s)</p>
-              </div>
-
-              {expandedPropertyId === property._id && (
-                <div style={styles.renterList}>
-                  <h4>Liste des locataires</h4>
-                  {property.units.map((unit, index) => (
-                    <div key={index} style={styles.renterItem}>
-                      <p><strong>Code :</strong> {unit.code}</p>
-                      <p><strong>Type :</strong> {unit.type}</p>
-                      <p><strong>Loyer :</strong> {unit.rent} FCFA</p>
-                      <p><strong>Occupé par :</strong> {unit.occupiedBy ? unit.occupiedBy : 'Non attribué'}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+        properties.map((property) => (
+          <div key={property._id} style={styles.card}>
+            <h4>{property.name}</h4>
+            <p>{property.address}</p>
+          </div>
+        ))
       )}
 
-      {/* Floating + Button at Top Right */}
-      <div style={styles.floatingButton} onClick={() => setShowOptions(prev => !prev)}>
-        +
+      {/* Floating Action Button */}
+      <div style={styles.fabContainer} ref={actionRef}>
+        <button onClick={() => setShowActions(!showActions)} style={styles.fab}>
+          +
+        </button>
+
+        {showActions && (
+          <div style={styles.actions}>
+            <button
+              style={styles.actionBtn}
+              onClick={() => {
+                setShowActions(false);
+                navigate('/loye/create');
+              }}
+            >
+              Créer Propriété
+            </button>
+            <button
+              style={styles.actionBtn}
+              onClick={() => {
+                setShowCodeInput(!showCodeInput);
+              }}
+            >
+              Entrer Code
+            </button>
+          </div>
+        )}
+
+        {showCodeInput && (
+          <form onSubmit={handleInviteSubmit} style={styles.codeBox}>
+            <input
+              type="text"
+              placeholder="Code d'invitation"
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              style={styles.codeInput}
+              required
+            />
+            <button type="submit" style={styles.codeButton} disabled={loading}>
+              {loading ? '...' : 'Valider'}
+            </button>
+            {error && <p style={styles.error}>{error}</p>}
+            {success && <p style={styles.success}>{success}</p>}
+          </form>
+        )}
       </div>
-      {showOptions && (
-        <div ref={optionsRef} style={styles.floatingMenu}>
-          <div style={styles.menuOption} onClick={() => navigate('/loye/create-property')}>
-            Créer Propriété
-          </div>
-          <div style={styles.menuOption} onClick={() => navigate('/loye/onboarding')}>
-            Entrer Code
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
 const styles = {
   container: {
-    maxWidth: '900px',
-    margin: '2rem auto',
-    padding: '1rem',
+    padding: '2rem',
     position: 'relative',
   },
-  cardGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr',
-    gap: '1rem',
-  },
   card: {
-    border: '1px solid #ccc',
-    borderRadius: '8px',
     padding: '1rem',
-    backgroundColor: '#fefefe',
-    boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
-    cursor: 'pointer',
-  },
-  cardHeader: {
+    border: '1px solid #ddd',
+    borderRadius: '6px',
     marginBottom: '1rem',
   },
-  renterList: {
-    padding: '1rem',
-    backgroundColor: '#f8f8f8',
-    borderTop: '1px solid #eee',
-    marginTop: '1rem',
-  },
-  renterItem: {
-    padding: '0.5rem 0',
-    borderBottom: '1px solid #ddd',
-  },
-  floatingButton: {
+  fabContainer: {
     position: 'fixed',
-    top: '100px',
-    right: '40px',
+    top: '8rem',
+    right: '1.5rem',
     zIndex: 1000,
-    backgroundColor: '#007BFF',
-    color: 'white',
-    borderRadius: '50%',
-    width: '50px',
-    height: '50px',
+  },
+  fab: {
     fontSize: '2rem',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: '50%',
+    width: '56px',
+    height: '56px',
+    border: 'none',
+    backgroundColor: '#ff6f00',
+    color: '#fff',
     cursor: 'pointer',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.2)',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
   },
-  floatingMenu: {
-    position: 'fixed',
-    top: '160px',
-    right: '40px',
-    backgroundColor: 'transparent',
-    zIndex: 1000,
+  actions: {
+    marginTop: '0.5rem',
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'flex-end',
     gap: '0.5rem',
   },
-  menuOption: {
-    backgroundColor: '#fff',
-    border: '1px solid #ddd',
-    borderRadius: '10px',
-    padding: '0.7rem 1rem',
-    fontSize: '1rem',
-    boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+  actionBtn: {
+    padding: '0.6rem 1.2rem',
+    borderRadius: '6px',
+    border: '1px solid #ccc',
+    background: '#fff',
     cursor: 'pointer',
-    fontWeight: 500,
-    width: 'fit-content',
+    fontSize: '0.95rem',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
   },
-  
+  codeBox: {
+    marginTop: '0.5rem',
+    padding: '0.8rem',
+    backgroundColor: '#fff',
+    border: '1px solid #ccc',
+    borderRadius: '6px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+  },
+  codeInput: {
+    padding: '0.5rem',
+    fontSize: '1rem',
+    borderRadius: '5px',
+    border: '1px solid #ccc',
+  },
+  codeButton: {
+    padding: '0.5rem',
+    backgroundColor: '#007BFF',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '5px',
+    cursor: 'pointer',
+  },
+  error: {
+    color: 'red',
+    fontSize: '0.9rem',
+  },
+  success: {
+    color: 'green',
+    fontSize: '0.9rem',
+  },
 };
 
 export default OwnerProperties;
