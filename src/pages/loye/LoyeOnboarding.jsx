@@ -5,7 +5,6 @@ import axios from '../../utils/axiosInstance';
 function LoyeOnboarding() {
   const [step, setStep] = useState(1);
   const [role, setRole] = useState('');
- 
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,17 +30,28 @@ function LoyeOnboarding() {
     }
   };
 
-  const handleInviteDecision = (answer) => {
+  const handleInviteDecision = async (answer) => {
     if (answer === 'yes') {
-      
       setStep(2);
     } else {
-      // Proceed directly without invite code
-      localStorage.setItem(
-        'user',
-        JSON.stringify({ ...user, loye: { role } })
-      );
-      navigate('/loye/properties');
+      try {
+        setLoading(true);
+        const res = await axios.post(
+          '/api/loye/onboarding/direct',
+          { role },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const updatedUser = { ...user, loye: { role: res.data.role } };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        navigate('/loye/properties');
+      } catch (err) {
+        const msg =
+          err.response?.data?.message || 'Erreur lors de l’intégration.';
+        setError(msg);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -49,17 +59,17 @@ function LoyeOnboarding() {
     e.preventDefault();
     setLoading(true);
     setError('');
-  
+
     try {
       const res = await axios.post(
-        '/api/loye/invite', // ✅ correct route
+        '/api/loye/invite',
         { code },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-  
+
       const updatedUser = { ...user, loye: { role: res.data.role } };
       localStorage.setItem('user', JSON.stringify(updatedUser));
-  
+
       if (res.data.role === 'renter') {
         navigate('/loye/dashboard');
       } else {
@@ -73,7 +83,6 @@ function LoyeOnboarding() {
       setLoading(false);
     }
   };
-  
 
   return (
     <div style={styles.container}>
@@ -97,6 +106,7 @@ function LoyeOnboarding() {
             <button onClick={() => handleInviteDecision('yes')} style={styles.button}>Oui</button>
             <button onClick={() => handleInviteDecision('no')} style={styles.button}>Non</button>
           </div>
+          {error && <p style={styles.error}>{error}</p>}
         </>
       )}
 
