@@ -13,13 +13,28 @@ function LoyeOnboarding() {
   const user = JSON.parse(localStorage.getItem('user'));
   const token = localStorage.getItem('token');
 
+  // ✅ 1. Check onboarding status immediately
   useEffect(() => {
-    if (user?.loye?.role === 'renter') {
-      navigate('/loye/dashboard');
-    } else if (user?.loye?.role === 'owner' || user?.loye?.role === 'manager') {
-      navigate('/loye/properties');
-    }
-  }, [navigate, user]);
+    const checkOnboardingStatus = async () => {
+      try {
+        const res = await axios.get('/api/loye/onboarding/status', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.data.onboarded && res.data.role) {
+          const updatedUser = { ...user, loye: { role: res.data.role } };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+
+          if (res.data.role === 'renter') navigate('/loye/dashboard');
+          else navigate('/loye/properties');
+        }
+      } catch (err) {
+        console.error('Failed to check onboarding status');
+      }
+    };
+
+    checkOnboardingStatus();
+  }, [navigate, token, user]);
 
   const handleRoleSelect = (selectedRole) => {
     setRole(selectedRole);
@@ -62,7 +77,7 @@ function LoyeOnboarding() {
 
     try {
       const res = await axios.post(
-        '/api/loye/invite',
+        '/api/loye/onboarding',
         { code },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -90,7 +105,7 @@ function LoyeOnboarding() {
 
       {step === 1 && (
         <>
-          <p>Vous Etre ?</p>
+          <p>Vous êtes ?</p>
           <div style={styles.buttonGroup}>
             <button onClick={() => handleRoleSelect('renter')} style={styles.button}>Locataire</button>
             <button onClick={() => handleRoleSelect('owner')} style={styles.button}>Propriétaire</button>
@@ -116,7 +131,7 @@ function LoyeOnboarding() {
           <form onSubmit={handleSubmit} style={styles.form}>
             <input
               type="text"
-              placeholder="Code (ex: 2B-GX9P7F)"
+              placeholder="Code (ex: 2B-150000-GX9P7F)"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               required
