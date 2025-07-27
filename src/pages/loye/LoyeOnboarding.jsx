@@ -1,3 +1,4 @@
+// 📄 client/src/pages/loye/LoyeOnboarding.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../../utils/axiosInstance';
@@ -13,36 +14,19 @@ function LoyeOnboarding() {
   const user = JSON.parse(localStorage.getItem('user'));
   const token = localStorage.getItem('token');
 
-  // ✅ 1. Check onboarding status immediately
+  // ✅ Instantly redirect if already onboarded
   useEffect(() => {
-    const checkOnboardingStatus = async () => {
-      try {
-        const res = await axios.get('/api/loye/onboarding/status', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (res.data.onboarded && res.data.role) {
-          const updatedUser = { ...user, loye: { role: res.data.role } };
-          localStorage.setItem('user', JSON.stringify(updatedUser));
-
-          if (res.data.role === 'renter') navigate('/loye/dashboard');
-          else navigate('/loye/properties');
-        }
-      } catch (err) {
-        console.error('Failed to check onboarding status');
-      }
-    };
-
-    checkOnboardingStatus();
-  }, [navigate, token, user]);
+    const role = user?.loye?.role;
+    if (role === 'renter') {
+      navigate('/loye/dashboard');
+    } else if (role === 'owner' || role === 'manager') {
+      navigate('/loye/properties');
+    }
+  }, [navigate, user]);
 
   const handleRoleSelect = (selectedRole) => {
     setRole(selectedRole);
-    if (selectedRole === 'renter') {
-      setStep(2);
-    } else {
-      setStep(3);
-    }
+    setStep(selectedRole === 'renter' ? 2 : 3);
   };
 
   const handleInviteDecision = async (answer) => {
@@ -61,8 +45,7 @@ function LoyeOnboarding() {
         localStorage.setItem('user', JSON.stringify(updatedUser));
         navigate('/loye/properties');
       } catch (err) {
-        const msg =
-          err.response?.data?.message || 'Erreur lors de l’intégration.';
+        const msg = err.response?.data?.message || 'Erreur lors de l’intégration.';
         setError(msg);
       } finally {
         setLoading(false);
@@ -127,11 +110,11 @@ function LoyeOnboarding() {
 
       {step === 2 && (
         <>
-          <p>Entrez votre code d'accès {role === 'renter' ? 'Loye' : 'd’invitation'} :</p>
+          <p>Entrez votre code d’accès {role === 'renter' ? 'Loye' : 'd’invitation'} :</p>
           <form onSubmit={handleSubmit} style={styles.form}>
             <input
               type="text"
-              placeholder="Code (ex: 2B-150000-GX9P7F)"
+              placeholder="Code (ex: 2B-4500-X1YZ)"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               required

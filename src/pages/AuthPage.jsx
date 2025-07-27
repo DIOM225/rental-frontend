@@ -1,3 +1,4 @@
+// 📄 client/src/pages/AuthPage.jsx
 import { useState } from 'react';
 import axios from '../utils/axiosInstance';
 import { useNavigate, Link } from 'react-router-dom';
@@ -17,10 +18,10 @@ function AuthPage() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-
     let cleanValue = value;
+
     if (name === 'phone') {
-      cleanValue = value.replace(/\D/g, ''); // remove non-digits
+      cleanValue = value.replace(/\D/g, '');
     }
 
     setForm((prev) => ({ ...prev, [name]: cleanValue }));
@@ -30,38 +31,52 @@ function AuthPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
-    // Clean phone number
+
     const cleanedPhone = form.phone.replace(/\D/g, '');
-  
-    // Only allow 8 or 10 digit numbers
+
     if (!isLogin && (cleanedPhone.length !== 8 && cleanedPhone.length !== 10)) {
       setError('Le numéro de téléphone doit contenir 8 ou 10 chiffres.');
       return;
     }
-  
+
     if (!isLogin && form.password !== form.confirmPassword) {
       setError('Les mots de passe ne correspondent pas.');
       return;
     }
-  
+
     const endpoint = isLogin
       ? `${process.env.REACT_APP_API_URL}/api/auth/login`
       : `${process.env.REACT_APP_API_URL}/api/auth/register`;
-  
+
     try {
       const payload = {
         ...form,
-        phone: cleanedPhone, // save cleaned version
+        phone: cleanedPhone,
       };
-  
+
       if (!isLogin) delete payload.confirmPassword;
-  
+
       const res = await axios.post(endpoint, payload);
-  
+
       if (isLogin) {
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('user', JSON.stringify(res.data.user));
+
+        // ✅ Check Loye onboarding status
+        try {
+          const statusRes = await axios.get('/api/loye/onboarding/status', {
+            headers: { Authorization: `Bearer ${res.data.token}` },
+          });
+
+          const updatedUser = {
+            ...res.data.user,
+            loye: statusRes.data.onboarded ? { role: statusRes.data.role } : null,
+          };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        } catch (statusError) {
+          console.error('Failed to fetch Loye status:', statusError);
+        }
+
         navigate('/');
         window.location.reload();
       } else {
@@ -74,7 +89,6 @@ function AuthPage() {
       setError(msg);
     }
   };
-  
 
   return (
     <div style={styles.container}>
@@ -154,8 +168,7 @@ function AuthPage() {
                 required
                 style={{
                   ...styles.input,
-                  borderColor:
-                    error.includes('mots de passe') ? 'red' : 'transparent',
+                  borderColor: error.includes('mots de passe') ? 'red' : 'transparent',
                 }}
               />
             </div>
@@ -171,11 +184,14 @@ function AuthPage() {
           <div style={styles.links}>
             <p>
               {isLogin ? "Pas de compte ?" : "Vous avez déjà un compte ?"}{' '}
-              <span onClick={() => {
-                setIsLogin(!isLogin);
-                setError('');
-                setSuccess('');
-              }} style={styles.link}>
+              <span
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setError('');
+                  setSuccess('');
+                }}
+                style={styles.link}
+              >
                 {isLogin ? 'Inscription' : 'Connexion'}
               </span>
             </p>
