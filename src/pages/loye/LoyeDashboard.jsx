@@ -1,5 +1,4 @@
-// 📄 client/src/pages/loye/LoyeDashboard.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../../utils/axiosInstance';
 
@@ -14,6 +13,19 @@ function LoyeDashboard() {
   const token = localStorage.getItem('token');
   const navigate = useNavigate();
 
+  // ✅ Memoized fetchUnitInfo to avoid ESLint warning
+  const fetchUnitInfo = useCallback(async (parsedUser) => {
+    try {
+      const res = await axios.get('/api/loye/renter/dashboard', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUnitInfo(res.data);
+    } catch (err) {
+      console.error('Failed to load unit info:', err);
+      setError("Impossible de récupérer les informations du logement.");
+    }
+  }, [token]);
+
   useEffect(() => {
     const stored = localStorage.getItem('loyeUser');
     if (stored) {
@@ -25,19 +37,7 @@ function LoyeDashboard() {
         navigate('/loye/properties');
       }
     }
-  }, []);
-
-  const fetchUnitInfo = async (parsedUser) => {
-    try {
-      const res = await axios.get('/api/loye/renter/dashboard', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setUnitInfo(res.data);
-    } catch (err) {
-      console.error('Failed to load unit info:', err);
-      setError("Impossible de récupérer les informations du logement.");
-    }
-  };
+  }, [fetchUnitInfo, navigate]);
 
   const handleRoleSelect = async (role) => {
     setSelectedRole(role);
