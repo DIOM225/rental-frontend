@@ -1,5 +1,5 @@
 import React, { Suspense, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import axios from '../utils/axiosInstance';
 import { FaStar } from 'react-icons/fa';
@@ -10,7 +10,7 @@ const Lightbox = React.lazy(() => import('yet-another-react-lightbox'));
 
 function PropertyDetail({ isAdminPreview = false }) {
   const { id } = useParams();
-  const navigate = useNavigate();
+  
 
   const [property, setProperty] = useState(null);
   const [editableProperty, setEditableProperty] = useState(null);
@@ -40,25 +40,16 @@ function PropertyDetail({ isAdminPreview = false }) {
 
   const openWhatsApp = useCallback(() => {
     trackClick();
-    const adminNumber = process.env.REACT_APP_ADMIN_WHATSAPP ;
+    const adminNumber = process.env.REACT_APP_ADMIN_WHATSAPP;
     const sanitized = adminNumber.replace(/\D/g, '');
     const message = encodeURIComponent(`Bonjour 👋, je suis intéressé par ce logement : ${window.location.href}`);
     window.open(`https://wa.me/${sanitized}?text=${message}`, '_blank');
-
   }, [trackClick]);
 
   const openLightbox = useCallback((index) => {
     setPhotoIndex(index);
     setLightboxOpen(true);
   }, []);
-
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (!storedUser) {
-      alert('Vous devez être connecté pour voir les détails.');
-      navigate('/auth');
-    }
-  }, [navigate]);
 
   useEffect(() => {
     if (!id) return;
@@ -235,7 +226,6 @@ function PropertyDetail({ isAdminPreview = false }) {
                 {data.price.toLocaleString()} FCFA {data.type === 'monthly' ? '/ mois' : '/ jour'}
               </p>
             )}
-
           </>
         )}
 
