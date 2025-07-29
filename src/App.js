@@ -28,7 +28,6 @@ import LoyeDashboard from './pages/loye/LoyeDashboard';
 import OwnerProperties from './pages/loye/OwnerProperties';
 import CreateProperty from './pages/loye/CreateProperty'; // ✅ Add CreateProperty page
 
-
 // 🔹 Admin Pages
 import AdminLayout from './pages/admin/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
@@ -53,9 +52,9 @@ function App() {
           <Route path="/request-host" element={<HostRequestForm />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
-          {/* 🔐 Protected Listing Routes */}
-          <Route path="/property/:id" element={<RequireAuth><PropertyDetail /></RequireAuth>} />
-          <Route path="/listing/:id" element={<RequireAuth><PropertyDetail /></RequireAuth>} />
+          {/* 🔓 Public Property Detail Pages */}
+          <Route path="/property/:id" element={<PropertyDetail />} />
+          <Route path="/listing/:id" element={<PropertyDetail />} />
 
           {/* 🔐 Protected User Routes */}
           <Route path="/messages" element={<RequireAuth><Messages /></RequireAuth>} />
