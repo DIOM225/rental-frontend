@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import axios from '../utils/axiosInstance';
-
 import ListingCard from '../components/ListingCard';
 
 function Daily() {
@@ -17,9 +16,15 @@ function Daily() {
 
     setLoading(true);
     try {
-      const res = await axios.get(
-        `${process.env.REACT_APP_API_URL}/api/listings?type=daily&page=${page}&limit=6&search=${searchQuery}`
-      );
+      const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/listings`, {
+        params: {
+          type: 'daily',
+          page,
+          limit: 6,
+          search: searchQuery,
+        },
+      });
+
       const newListings = res.data.listings || [];
 
       setListings((prev) => {
@@ -39,7 +44,6 @@ function Daily() {
     }
   }, [page, searchQuery, hasMore, loading]);
 
-  // Reset when searchQuery changes
   useEffect(() => {
     if (!didMountRef.current) {
       didMountRef.current = true;
@@ -70,13 +74,16 @@ function Daily() {
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
+    setListings([]);
+    setPage(1);
+    setHasMore(true);
     setSearchQuery(inputValue.trim());
   };
 
   return (
     <div style={{ padding: '1rem', maxWidth: '1200px', margin: '0 auto' }}>
       <h2 style={{ textAlign: 'center', fontSize: '1.6rem', marginBottom: '1.5rem' }}>
-        Residence
+        Résidences Journalières
       </h2>
 
       <form
@@ -86,7 +93,7 @@ function Daily() {
         <input
           type="text"
           value={inputValue}
-          placeholder="Rechercher..."
+          placeholder="Rechercher par titre ou ville..."
           onChange={(e) => setInputValue(e.target.value)}
           style={{
             padding: '0.75rem 1rem',
@@ -111,7 +118,15 @@ function Daily() {
         }}
       >
         {listings.map((listing) => (
-          <ListingCard key={listing._id} listing={listing} />
+          <ListingCard
+            key={listing._id}
+            listing={{
+              ...listing,
+              images: listing.images?.map(img =>
+                img?.replace('/upload/', '/upload/w_400,h_300,c_fill/')
+              ) || [],
+            }}
+          />
         ))}
       </div>
 
