@@ -180,8 +180,16 @@ function OwnerProperties() {
                 <div style={{ marginTop: '1rem' }}>
                   {property.units?.map((unit, idx) => (
                     <div key={idx} style={styles.unitRow}>
-                      <span>{unit.type} —</span>
-                      <span style={styles.unitBadge}>Libre</span>
+                      <div style={styles.unitInfo}>
+                        <span>
+                          {unit.type} — {!unit.renter && unit.inviteCode && (
+                            <span style={styles.codeText}>🔑 {unit.inviteCode}</span>
+                          )}
+                        </span>
+                        <span style={styles.unitBadge}>
+                          {unit.renter ? 'Occupé' : 'Libre'}
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -228,6 +236,8 @@ const styles = {
   emptyCard: { background: '#f1f5f9', padding: '2rem', borderRadius: '10px', textAlign: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' },
   emptyTitle: { fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem' },
   unitRow: { display: 'flex', justifyContent: 'space-between', padding: '0.4rem 1rem', background: '#f9f9f9', marginBottom: '0.5rem', borderRadius: '6px' },
+  unitInfo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', fontSize: '0.95rem' },
+  codeText: { marginLeft: '0.5rem', color: '#334155', fontWeight: 600, fontSize: '0.85rem' },
   unitBadge: { backgroundColor: '#fee2e2', color: '#b91c1c', padding: '0.2rem 0.6rem', fontSize: '0.75rem', borderRadius: '999px' },
 };
 
