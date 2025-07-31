@@ -66,10 +66,23 @@ function OwnerProperties() {
     }
   };
 
-  const toggleExpanded = (propertyId) => {
-    setExpandedPropertyId((prev) => (prev === propertyId ? null : propertyId));
-  };
+  const toggleExpanded = async (propertyId) => {
+    if (expandedPropertyId === propertyId) {
+      setExpandedPropertyId(null);
+      return;
+    }
 
+    try {
+      const res = await axios.get(`/api/loye/properties/${propertyId}`);
+      setProperties((prev) =>
+        prev.map((p) => (p._id === propertyId ? res.data : p))
+      );
+      setExpandedPropertyId(propertyId);
+    } catch (err) {
+      console.error('Erreur de chargement des détails:', err);
+    }
+  };
+  
   return (
     <div style={styles.container}>
       <div style={styles.header}>
