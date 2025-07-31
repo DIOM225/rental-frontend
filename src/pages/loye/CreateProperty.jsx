@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from '../../utils/axiosInstance';
 
 function CreateProperty() {
@@ -6,14 +7,14 @@ function CreateProperty() {
   const [address, setAddress] = useState('');
   const [units, setUnits] = useState({
     studio: { count: '', rent: '' },
-    '1br': { count: '', rent: '' },
     '2br': { count: '', rent: '' },
     '3br': { count: '', rent: '' },
   });
   const [message, setMessage] = useState('');
   const [inviteCodes, setInviteCodes] = useState(null);
   const [error, setError] = useState('');
-  
+
+  const navigate = useNavigate();
 
   const handleUnitChange = (type, field, value) => {
     setUnits((prev) => ({
@@ -50,6 +51,11 @@ function CreateProperty() {
       setMessage(res.data.message);
       if (res.data.inviteCodes) {
         setInviteCodes(res.data.inviteCodes);
+
+        // ✅ Redirect after 2 seconds
+        setTimeout(() => {
+          navigate('/loye/properties');
+        }, 2000);
       }
     } catch (err) {
       const msg = err.response?.data?.message || 'Erreur lors de la création.';
