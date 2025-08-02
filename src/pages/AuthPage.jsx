@@ -59,27 +59,16 @@ function AuthPage() {
       const res = await axios.post(endpoint, payload);
 
       if (isLogin) {
-        localStorage.setItem('token', res.data.token);
-        localStorage.setItem('user', JSON.stringify(res.data.user));
-
-        // ✅ Check Loye onboarding status
-        try {
-          const statusRes = await axios.get('/api/loye/onboarding/status', {
-            headers: { Authorization: `Bearer ${res.data.token}` },
-          });
-
-          const updatedUser = {
-            ...res.data.user,
-            loye: statusRes.data.onboarded ? { role: statusRes.data.role } : null,
-          };
-          localStorage.setItem('user', JSON.stringify(updatedUser));
-        } catch (statusError) {
-          console.error('Failed to fetch Loye status:', statusError);
-        }
-
+        const { token, user } = res.data;
+      
+        // ✅ Ensure the role is saved for onboarding check
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+      
         navigate('/');
         window.location.reload();
-      } else {
+      } 
+      else {
         setSuccess('✅ Inscription réussie ! Vous pouvez maintenant vous connecter.');
         setForm({ name: '', email: '', phone: '', password: '', confirmPassword: '' });
         setIsLogin(true);

@@ -1,17 +1,21 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import axios from '../../utils/axiosInstance';
 import { useNavigate } from 'react-router-dom';
-import { FaBuilding, FaMoneyBillWave, FaHome, FaChartLine, FaEye, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import {
+  FaBuilding,
+  FaMoneyBillWave,
+  FaHome,
+  FaChartLine,
+  FaEye,
+} from 'react-icons/fa';
 
 function OwnerProperties() {
   const [properties, setProperties] = useState([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showCodeInput, setShowCodeInput] = useState(false);
-  const [expandedPropertyId, setExpandedPropertyId] = useState(null);
   const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const dropdownRef = useRef(null);
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user'));
@@ -27,17 +31,6 @@ function OwnerProperties() {
 
   useEffect(() => {
     fetchProperties();
-  }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setDropdownOpen(false);
-        setShowCodeInput(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleInviteSubmit = async (e) => {
@@ -66,23 +59,6 @@ function OwnerProperties() {
     }
   };
 
-  const toggleExpanded = async (propertyId) => {
-    if (expandedPropertyId === propertyId) {
-      setExpandedPropertyId(null);
-      return;
-    }
-
-    try {
-      const res = await axios.get(`/api/loye/properties/${propertyId}`);
-      setProperties((prev) =>
-        prev.map((p) => (p._id === propertyId ? res.data : p))
-      );
-      setExpandedPropertyId(propertyId);
-    } catch (err) {
-      console.error('Erreur de chargement des détails:', err);
-    }
-  };
-  
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -90,13 +66,19 @@ function OwnerProperties() {
           <h2 style={styles.title}>Mes Propriétés</h2>
           <p style={styles.subtitle}>Gérez vos biens locatifs et suivez leurs performances</p>
         </div>
-        <div style={{ position: 'relative' }} ref={dropdownRef}>
+        <div style={{ position: 'relative' }}>
           <button onClick={() => setDropdownOpen(!dropdownOpen)} style={styles.primaryButton}>
             + Ajouter une propriété
           </button>
           {dropdownOpen && (
             <div style={styles.dropdownMenu}>
-              <button style={styles.dropdownItem} onClick={() => { setDropdownOpen(false); navigate('/loye/create'); }}>
+              <button
+                style={styles.dropdownItem}
+                onClick={() => {
+                  setDropdownOpen(false);
+                  navigate('/loye/create');
+                }}
+              >
                 Créer une propriété
               </button>
               <button style={styles.dropdownItem} onClick={() => setShowCodeInput(!showCodeInput)}>
@@ -188,30 +170,12 @@ function OwnerProperties() {
                 <div>Revenu mensuel <strong>0 FCFA</strong></div>
                 <div>Créé par <strong>{property.createdByRole}</strong></div>
               </div>
-
-              {expandedPropertyId === property._id && (
-                <div style={{ marginTop: '1rem' }}>
-                  {property.units?.map((unit, idx) => (
-                    <div key={idx} style={styles.unitRow}>
-                      <div style={styles.unitInfo}>
-                        <span>
-                          {unit.type} — {!unit.renter && unit.inviteCode && (
-                            <span style={styles.codeText}>🔑 {unit.inviteCode}</span>
-                          )}
-                        </span>
-                        <span style={styles.unitBadge}>
-                          {unit.renter ? 'Occupé' : 'Libre'}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <button style={styles.viewBtn} onClick={() => toggleExpanded(property._id)}>
+              <button
+                style={styles.viewBtn}
+                onClick={() => navigate(`/loye/property/${property._id}`)}
+              >
                 <FaEye />
-                &nbsp; {expandedPropertyId === property._id ? 'Masquer détails' : 'Voir détails'}
-                {expandedPropertyId === property._id ? <FaChevronUp /> : <FaChevronDown />}
+                &nbsp; Voir détails
               </button>
             </div>
           ))

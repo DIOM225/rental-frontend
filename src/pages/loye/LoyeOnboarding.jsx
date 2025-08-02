@@ -1,132 +1,127 @@
-// 📄 client/src/pages/loye/LoyeOnboarding.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../../utils/axiosInstance';
 
 function LoyeOnboarding() {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(null); // null until role check is done
   const [role, setRole] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user'));
   const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user'));
 
-  // ✅ Instantly redirect if already onboarded
+  // ✅ Auto-redirect if already onboarded
   useEffect(() => {
-    const role = user?.loye?.role;
-    if (role === 'renter') {
-      navigate('/loye/dashboard');
-    } else if (role === 'owner' || role === 'manager') {
-      navigate('/loye/properties');
+    const loye = user?.loye;
+    if (loye?.onboarded && loye?.role) {
+      if (loye.role === 'renter') {
+        navigate('/loye/dashboard');
+      } else {
+        navigate('/loye/properties');
+      }
+    } else {
+      setStep(1);
     }
   }, [navigate, user]);
 
-  const handleRoleSelect = (selectedRole) => {
-    setRole(selectedRole);
-    setStep(selectedRole === 'renter' ? 2 : 3);
-  };
-
-  const handleInviteDecision = async (answer) => {
-    if (answer === 'yes') {
-      setStep(2);
-    } else {
-      try {
-        setLoading(true);
-        const res = await axios.post(
-          '/api/loye/onboarding/direct',
-          { role },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        const updatedUser = { ...user, loye: { role: res.data.role } };
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        navigate('/loye/properties');
-      } catch (err) {
-        const msg = err.response?.data?.message || 'Erreur lors de l’intégration.';
-        setError(msg);
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
-  const handleSubmit = async (e) => {
+  const handleInviteSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
       const res = await axios.post(
-        '/api/loye/onboarding',
+        `${process.env.REACT_APP_API_URL}/api/loye/invite`,
         { code },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      const updatedUser = { ...user, loye: { role: res.data.role } };
+      const onboardedRole = res.data.role;
+
+      const updatedUser = {
+        ...user,
+        loye: {
+          role: onboardedRole,
+          onboarded: true,
+        },
+      };
       localStorage.setItem('user', JSON.stringify(updatedUser));
 
-      if (res.data.role === 'renter') {
+      if (onboardedRole === 'renter') {
         navigate('/loye/dashboard');
       } else {
         navigate('/loye/properties');
       }
     } catch (err) {
-      const msg =
-        err.response?.data?.message || 'Une erreur est survenue. Réessayez.';
+      const msg = err.response?.data?.message || 'Une erreur est survenue.';
       setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSkip = () => {
+    const updatedUser = {
+      ...user,
+      loye: {
+        role,
+        onboarded: true,
+      },
+    };
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    navigate('/loye/properties');
+  };
+
+  if (step === null) return null;
+
+  if (step === 1) {
+    return (
+      <div style={styles.container}>
+        <h2>Bienvenue sur Loye</h2>
+        <p>Choisissez votre rôle :</p>
+        <div style={styles.roles}>
+          <button onClick={() => setRole('renter')} style={styles.button}>Locataire</button>
+          <button onClick={() => setRole('owner')} style={styles.button}>Propriétaire</button>
+          <button onClick={() => setRole('manager')} style={styles.button}>Gestionnaire</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (role === 'renter' || code) {
+    return (
+      <div style={styles.container}>
+        <h2>Accès à Loye</h2>
+        <p>Entrez votre code d’accès :</p>
+        <form onSubmit={handleInviteSubmit} style={styles.form}>
+          <input
+            type="text"
+            placeholder="Code (ex: REN-XXXX)"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            required
+            style={styles.input}
+          />
+          <button type="submit" style={styles.button} disabled={loading}>
+            {loading ? 'Vérification...' : 'Valider'}
+          </button>
+        </form>
+        {error && <p style={styles.error}>{error}</p>}
+      </div>
+    );
+  }
+
   return (
     <div style={styles.container}>
-      <h2>Accès à Loye</h2>
-
-      {step === 1 && (
-        <>
-          <p>Vous êtes ?</p>
-          <div style={styles.buttonGroup}>
-            <button onClick={() => handleRoleSelect('renter')} style={styles.button}>Locataire</button>
-            <button onClick={() => handleRoleSelect('owner')} style={styles.button}>Propriétaire</button>
-            <button onClick={() => handleRoleSelect('manager')} style={styles.button}>Gestionnaire</button>
-          </div>
-        </>
-      )}
-
-      {step === 3 && (
-        <>
-          <p>Avez-vous reçu un code d'invitation ?</p>
-          <div style={styles.buttonGroup}>
-            <button onClick={() => handleInviteDecision('yes')} style={styles.button}>Oui</button>
-            <button onClick={() => handleInviteDecision('no')} style={styles.button}>Non</button>
-          </div>
-          {error && <p style={styles.error}>{error}</p>}
-        </>
-      )}
-
-      {step === 2 && (
-        <>
-          <p>Entrez votre code d’accès {role === 'renter' ? 'Loye' : 'd’invitation'} :</p>
-          <form onSubmit={handleSubmit} style={styles.form}>
-            <input
-              type="text"
-              placeholder="Code (ex: 2B-4500-X1YZ)"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              required
-              style={styles.input}
-            />
-            <button type="submit" style={styles.button} disabled={loading}>
-              {loading ? 'Vérification...' : 'Valider'}
-            </button>
-          </form>
-          {error && <p style={styles.error}>{error}</p>}
-        </>
-      )}
+      <h2>Invité ou création directe ?</h2>
+      <p>Souhaitez-vous utiliser un code d'invitation ?</p>
+      <div style={styles.roles}>
+        <button onClick={() => setStep(2)} style={styles.button}>J’ai un code</button>
+        <button onClick={handleSkip} style={styles.button}>Continuer sans code</button>
+      </div>
     </div>
   );
 }
@@ -141,18 +136,17 @@ const styles = {
     textAlign: 'center',
     backgroundColor: '#f9f9f9',
   },
-  buttonGroup: {
-    display: 'flex',
-    gap: '1rem',
-    justifyContent: 'center',
-    marginTop: '1rem',
-    flexWrap: 'wrap',
-  },
   form: {
     marginTop: '1.5rem',
     display: 'flex',
     flexDirection: 'column',
     gap: '1rem',
+  },
+  roles: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem',
+    marginTop: '1.5rem',
   },
   input: {
     padding: '0.7rem',

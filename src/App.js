@@ -27,6 +27,7 @@ import LoyeOnboarding from './pages/loye/LoyeOnboarding';
 import LoyeDashboard from './pages/loye/LoyeDashboard';
 import OwnerProperties from './pages/loye/OwnerProperties';
 import CreateProperty from './pages/loye/CreateProperty'; // ✅ Add CreateProperty page
+import PropertyDetailView from './pages/loye/PropertyDetailView';
 
 import RenterDashboard from './pages/loye/RenterDashboard';
 
@@ -102,6 +103,7 @@ function App() {
             }
           />
           <Route path="/loye" element={<RequireAuth><LoyeOnboarding /></RequireAuth>} />
+          <Route path="/loye/property/:id" element={<PropertyDetailView />} />
 
           {/* 🛠 Admin Routes */}
           <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
