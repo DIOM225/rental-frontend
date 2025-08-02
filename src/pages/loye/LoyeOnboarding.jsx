@@ -15,17 +15,34 @@ function LoyeOnboarding() {
 
   // ✅ Auto-redirect if already onboarded
   useEffect(() => {
-    const loye = user?.loye;
-    if (loye?.onboarded && loye?.role) {
-      if (loye.role === 'renter') {
-        navigate('/loye/dashboard');
-      } else {
-        navigate('/loye/properties');
+    const checkUserRole = async () => {
+      try {
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/loye/check-role`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+  
+        const { role } = res.data;
+  
+        if (role === 'renter') {
+          navigate('/loye/dashboard');
+        } else if (role === 'owner' || role === 'manager') {
+          navigate('/loye/properties');
+        } else {
+          setStep(1); // not linked yet
+        }
+      } catch (err) {
+        console.error('Failed to check Loye role:', err);
+        setStep(1); // fallback
       }
+    };
+  
+    if (token) {
+      checkUserRole();
     } else {
-      setStep(1);
+      navigate('/auth');
     }
-  }, [navigate, user]);
+  }, [navigate, token]);
+  
 
   const handleInviteSubmit = async (e) => {
     e.preventDefault();
