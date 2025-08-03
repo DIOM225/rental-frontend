@@ -86,9 +86,9 @@ function App() {
             path="/loye/properties"
             element={
               <RequireAuth>
-                <RequireLoyeRole role={["owner", "manager"]}>
+                
                   <OwnerProperties />
-                </RequireLoyeRole>
+                
               </RequireAuth>
             }
           />
