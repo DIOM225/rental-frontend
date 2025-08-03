@@ -82,13 +82,13 @@ function App() {
               </RequireAuth>
             }
           />
-          <Route
+         <Route
             path="/loye/properties"
             element={
               <RequireAuth>
                 
                   <OwnerProperties />
-                
+               
               </RequireAuth>
             }
           />

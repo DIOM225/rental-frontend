@@ -20,9 +20,9 @@ function LoyeOnboarding() {
         const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/loye/check-role`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-  
+
         const { role } = res.data;
-  
+
         if (role === 'renter') {
           navigate('/loye/dashboard');
         } else if (role === 'owner' || role === 'manager') {
@@ -35,14 +35,13 @@ function LoyeOnboarding() {
         setStep(1); // fallback
       }
     };
-  
+
     if (token) {
       checkUserRole();
     } else {
       navigate('/auth');
     }
   }, [navigate, token]);
-  
 
   const handleInviteSubmit = async (e) => {
     e.preventDefault();
@@ -100,15 +99,15 @@ function LoyeOnboarding() {
         <h2>Bienvenue sur Loye</h2>
         <p>Choisissez votre rôle :</p>
         <div style={styles.roles}>
-          <button onClick={() => setRole('renter')} style={styles.button}>Locataire</button>
-          <button onClick={() => setRole('owner')} style={styles.button}>Propriétaire</button>
-          <button onClick={() => setRole('manager')} style={styles.button}>Gestionnaire</button>
+          <button onClick={() => { setRole('renter'); setStep(2); }} style={styles.button}>Locataire</button>
+          <button onClick={() => { setRole('owner'); setStep(3); }} style={styles.button}>Propriétaire</button>
+          <button onClick={() => { setRole('manager'); setStep(3); }} style={styles.button}>Gestionnaire</button>
         </div>
       </div>
     );
   }
 
-  if (role === 'renter' || code) {
+  if (step === 2) {
     return (
       <div style={styles.container}>
         <h2>Accès à Loye</h2>
@@ -131,16 +130,20 @@ function LoyeOnboarding() {
     );
   }
 
-  return (
-    <div style={styles.container}>
-      <h2>Invité ou création directe ?</h2>
-      <p>Souhaitez-vous utiliser un code d'invitation ?</p>
-      <div style={styles.roles}>
-        <button onClick={() => setStep(2)} style={styles.button}>J’ai un code</button>
-        <button onClick={handleSkip} style={styles.button}>Continuer sans code</button>
+  if (step === 3) {
+    return (
+      <div style={styles.container}>
+        <h2>Invité ou création directe ?</h2>
+        <p>Souhaitez-vous utiliser un code d'invitation ?</p>
+        <div style={styles.roles}>
+          <button onClick={() => setStep(2)} style={styles.button}>J’ai un code</button>
+          <button onClick={handleSkip} style={styles.button}>Continuer sans code</button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return null;
 }
 
 const styles = {
