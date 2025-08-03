@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from '../../utils/axiosInstance';
 
 function LoyeOnboarding() {
-  const [step, setStep] = useState(null); // null until role check is done
+  const [step, setStep] = useState(null);
   const [role, setRole] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
@@ -13,7 +13,6 @@ function LoyeOnboarding() {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user'));
 
-  // ✅ Auto-redirect if already onboarded
   useEffect(() => {
     const checkUserRole = async () => {
       try {
@@ -28,11 +27,11 @@ function LoyeOnboarding() {
         } else if (role === 'owner' || role === 'manager') {
           navigate('/loye/properties');
         } else {
-          setStep(1); // not linked yet
+          setStep(1);
         }
       } catch (err) {
         console.error('Failed to check Loye role:', err);
-        setStep(1); // fallback
+        setStep(1);
       }
     };
 
@@ -79,17 +78,30 @@ function LoyeOnboarding() {
     }
   };
 
-  const handleSkip = () => {
-    const updatedUser = {
-      ...user,
-      loye: {
-        role,
-        onboarded: true,
-      },
-    };
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    navigate('/loye/properties');
+  const handleSkip = async () => {
+    setLoading(true);
+    setError('');
+  
+    try {
+      const res = await axios.post(
+        `${process.env.REACT_APP_API_URL}/api/loye/auth/register-role`,
+        { role },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+  
+      // ✅ Save the new token and user returned by backend
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+  
+      navigate('/loye/properties');
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Une erreur est survenue.';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
+  
 
   if (step === null) return null;
 
@@ -137,8 +149,11 @@ function LoyeOnboarding() {
         <p>Souhaitez-vous utiliser un code d'invitation ?</p>
         <div style={styles.roles}>
           <button onClick={() => setStep(2)} style={styles.button}>J’ai un code</button>
-          <button onClick={handleSkip} style={styles.button}>Continuer sans code</button>
+          <button onClick={handleSkip} style={styles.button} disabled={loading}>
+            {loading ? 'Traitement...' : 'Continuer sans code'}
+          </button>
         </div>
+        {error && <p style={styles.error}>{error}</p>}
       </div>
     );
   }

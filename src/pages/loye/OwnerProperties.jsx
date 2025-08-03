@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react'; 
 import axios from '../../utils/axiosInstance';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -18,20 +18,25 @@ function OwnerProperties() {
   const [success, setSuccess] = useState('');
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user'));
+ 
 
-  const fetchProperties = async () => {
+  const fetchProperties = useCallback(async () => {
     try {
-      const res = await axios.get('/api/loye/properties');
+      const res = await axios.get('/api/loye/properties', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       setProperties(res.data);
     } catch (err) {
       console.error('Erreur lors du chargement:', err);
     }
-  };
+  }, [token]); // ✅ Use useCallback to avoid ESLint warning
+
 
   useEffect(() => {
     fetchProperties();
-  }, []);
+  }, [fetchProperties]);
 
   const handleInviteSubmit = async (e) => {
     e.preventDefault();
@@ -43,11 +48,14 @@ function OwnerProperties() {
         { code: inviteCode },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      const updatedUser = { ...user, loye: { role: res.data.role } };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+  
+      // ✅ Store new token and updated user info with correct role
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+  
       setSuccess('Code accepté ! Redirection...');
       setTimeout(() => {
-        if (res.data.role === 'renter') {
+        if (res.data.user.role === 'renter') {
           navigate('/loye/dashboard');
         } else {
           navigate('/loye/properties');
@@ -58,6 +66,7 @@ function OwnerProperties() {
       setError(msg);
     }
   };
+  
 
   return (
     <div style={styles.container}>
