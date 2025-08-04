@@ -11,13 +11,11 @@ function LoyeOnboarding() {
 
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user'));
 
   useEffect(() => {
     const localUser = JSON.parse(localStorage.getItem('user'));
     const localRole = localUser?.loye?.role;
 
-    // 🧠 Immediately redirect if user is already onboarded
     if (localRole === 'renter') {
       navigate('/loye/dashboard');
       return;
@@ -35,7 +33,16 @@ function LoyeOnboarding() {
         const { role } = res.data;
 
         if (role) {
-          localStorage.setItem('loyeRole', role); // ✅ Store for RequireLoyeRole to use
+          const user = JSON.parse(localStorage.getItem('user'));
+          const updatedUser = {
+            ...user,
+            loye: {
+              role,
+              onboarded: true,
+            },
+          };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          localStorage.setItem('loyeRole', role);
         }
 
         if (role === 'renter') {
@@ -43,7 +50,7 @@ function LoyeOnboarding() {
         } else if (role === 'owner' || role === 'manager') {
           navigate('/loye/properties');
         } else {
-          setStep(1); // show onboarding form
+          setStep(1);
         }
 
       } catch (err) {
@@ -72,7 +79,7 @@ function LoyeOnboarding() {
       );
 
       const onboardedRole = res.data.role;
-
+      const user = JSON.parse(localStorage.getItem('user'));
       const updatedUser = {
         ...user,
         loye: {
