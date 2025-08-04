@@ -14,6 +14,18 @@ function LoyeOnboarding() {
   const user = JSON.parse(localStorage.getItem('user'));
 
   useEffect(() => {
+    const localUser = JSON.parse(localStorage.getItem('user'));
+    const localRole = localUser?.loye?.role;
+
+    // 🧠 Immediately redirect if user is already onboarded
+    if (localRole === 'renter') {
+      navigate('/loye/dashboard');
+      return;
+    } else if (localRole === 'owner' || localRole === 'manager') {
+      navigate('/loye/properties');
+      return;
+    }
+
     const checkUserRole = async () => {
       try {
         const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/loye/auth/check-role`, {
@@ -22,13 +34,18 @@ function LoyeOnboarding() {
 
         const { role } = res.data;
 
+        if (role) {
+          localStorage.setItem('loyeRole', role); // ✅ Store for RequireLoyeRole to use
+        }
+
         if (role === 'renter') {
           navigate('/loye/dashboard');
         } else if (role === 'owner' || role === 'manager') {
           navigate('/loye/properties');
         } else {
-          setStep(1);
+          setStep(1); // show onboarding form
         }
+
       } catch (err) {
         console.error('Failed to check Loye role:', err.response?.data || err.message || err);
         setStep(1);
@@ -41,7 +58,6 @@ function LoyeOnboarding() {
       navigate('/auth');
     }
   }, [navigate, token]);
-  console.log('Step:', step);
 
   const handleInviteSubmit = async (e) => {
     e.preventDefault();
@@ -82,18 +98,17 @@ function LoyeOnboarding() {
   const handleSkip = async () => {
     setLoading(true);
     setError('');
-  
+
     try {
       const res = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/loye/auth/register-role`,
         { role },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-  
-      // ✅ Save the new token and user returned by backend
+
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
-  
+
       navigate('/loye/properties');
     } catch (err) {
       const msg = err.response?.data?.message || 'Une erreur est survenue.';
@@ -102,7 +117,6 @@ function LoyeOnboarding() {
       setLoading(false);
     }
   };
-  
 
   if (step === null) return null;
 

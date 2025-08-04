@@ -29,7 +29,6 @@ import OwnerProperties from './pages/loye/OwnerProperties';
 import CreateProperty from './pages/loye/CreateProperty';
 import PropertyDetailView from './pages/loye/PropertyDetailView';
 
-
 // 🔹 Admin
 import AdminLayout from './pages/admin/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
@@ -76,18 +75,15 @@ function App() {
           } />
           <Route path="/loye/properties" element={
             <RequireAuth>
-              <RequireLoyeRole role={["owner", "manager"]}>
-                <OwnerProperties />
-              </RequireLoyeRole>
+              <OwnerProperties />
             </RequireAuth>
           } />
           <Route path="/loye/create" element={
             <RequireAuth>
-              <RequireLoyeRole role={["owner", "manager"]}>
-                <CreateProperty />
-              </RequireLoyeRole>
+              <CreateProperty />
             </RequireAuth>
           } />
+
           <Route path="/loye/property/:id" element={<RequireAuth><PropertyDetailView /></RequireAuth>} />
 
           {/* 🛠 Admin */}
