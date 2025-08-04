@@ -4,7 +4,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import MainLayout from './components/MainLayout';
 import RequireAuth from './components/RequireAuth';
 import RequireAdmin from './components/RequireAdmin';
-import RequireLoyeRole from './components/RequireLoyeRole'; // ✅ role-based Loye guard
+import RequireLoyeRole from './components/RequireLoyeRole';
 
 // 🔹 User & Host Pages
 import Home from './pages/Home';
@@ -22,16 +22,15 @@ import HostDashboard from './pages/host/HostDashboard';
 import HostRequestForm from './pages/HostRequestForm';
 import ResetPassword from './pages/ResetPassword';
 
-// 🔹 Embedded Loye Pages (Unified flow)
+// 🔹 Loye
 import LoyeOnboarding from './pages/loye/LoyeOnboarding';
 import LoyeDashboard from './pages/loye/LoyeDashboard';
 import OwnerProperties from './pages/loye/OwnerProperties';
-import CreateProperty from './pages/loye/CreateProperty'; // ✅ Add CreateProperty page
+import CreateProperty from './pages/loye/CreateProperty';
 import PropertyDetailView from './pages/loye/PropertyDetailView';
 
-import RenterDashboard from './pages/loye/RenterDashboard';
 
-// 🔹 Admin Pages
+// 🔹 Admin
 import AdminLayout from './pages/admin/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
 import Users from './pages/admin/Users';
@@ -44,7 +43,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* 🏠 Main App Routes */}
+        {/* 🌐 Public Pages */}
         <Route element={<MainLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/monthly" element={<Monthly />} />
@@ -54,15 +53,10 @@ function App() {
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/request-host" element={<HostRequestForm />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-
-          <Route path="/loye/dashboard" element={<RenterDashboard />} />
-
-
-          {/* 🔓 Public Property Detail Pages */}
           <Route path="/property/:id" element={<PropertyDetail />} />
           <Route path="/listing/:id" element={<PropertyDetail />} />
 
-          {/* 🔐 Protected User Routes */}
+          {/* 🔒 Authenticated Users */}
           <Route path="/messages" element={<RequireAuth><Messages /></RequireAuth>} />
           <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
           <Route path="/add" element={<RequireAuth><AddListing /></RequireAuth>} />
@@ -70,42 +64,33 @@ function App() {
           <Route path="/edit/:id" element={<RequireAuth><EditListing /></RequireAuth>} />
           <Route path="/host/dashboard" element={<RequireAuth><HostDashboard /></RequireAuth>} />
 
-          {/* 🟦 Loye Flow */}
+          {/* 🏢 Loye Flow */}
           <Route path="/loye/onboarding" element={<RequireAuth><LoyeOnboarding /></RequireAuth>} />
-          <Route
-            path="/loye/dashboard"
-            element={
-              <RequireAuth>
-                <RequireLoyeRole role="renter">
-                  <LoyeDashboard />
-                </RequireLoyeRole>
-              </RequireAuth>
-            }
-          />
-         <Route
-            path="/loye/properties"
-            element={
-              <RequireAuth>
-                
-                  <OwnerProperties />
-               
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/loye/create"
-            element={
-              <RequireAuth>
-                <RequireLoyeRole role={["owner", "manager"]}>
-                  <CreateProperty />
-                </RequireLoyeRole>
-              </RequireAuth>
-            }
-          />
           <Route path="/loye" element={<RequireAuth><LoyeOnboarding /></RequireAuth>} />
-          <Route path="/loye/property/:id" element={<PropertyDetailView />} />
+          <Route path="/loye/dashboard" element={
+            <RequireAuth>
+              <RequireLoyeRole role="renter">
+                <LoyeDashboard />
+              </RequireLoyeRole>
+            </RequireAuth>
+          } />
+          <Route path="/loye/properties" element={
+            <RequireAuth>
+              <RequireLoyeRole role={["owner", "manager"]}>
+                <OwnerProperties />
+              </RequireLoyeRole>
+            </RequireAuth>
+          } />
+          <Route path="/loye/create" element={
+            <RequireAuth>
+              <RequireLoyeRole role={["owner", "manager"]}>
+                <CreateProperty />
+              </RequireLoyeRole>
+            </RequireAuth>
+          } />
+          <Route path="/loye/property/:id" element={<RequireAuth><PropertyDetailView /></RequireAuth>} />
 
-          {/* 🛠 Admin Routes */}
+          {/* 🛠 Admin */}
           <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="users" element={<Users />} />
@@ -117,15 +102,10 @@ function App() {
           </Route>
         </Route>
 
-        {/* ❌ 404 Fallback */}
-        <Route
-          path="*"
-          element={
-            <h2 style={{ padding: '2rem', textAlign: 'center' }}>
-              Page non trouvée
-            </h2>
-          }
-        />
+        {/* ❌ 404 */}
+        <Route path="*" element={
+          <h2 style={{ padding: '2rem', textAlign: 'center' }}>Page non trouvée</h2>
+        } />
       </Routes>
     </Router>
   );

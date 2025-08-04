@@ -16,7 +16,7 @@ function LoyeOnboarding() {
   useEffect(() => {
     const checkUserRole = async () => {
       try {
-        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/loye/check-role`, {
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/loye/auth/check-role`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -30,7 +30,7 @@ function LoyeOnboarding() {
           setStep(1);
         }
       } catch (err) {
-        console.error('Failed to check Loye role:', err);
+        console.error('Failed to check Loye role:', err.response?.data || err.message || err);
         setStep(1);
       }
     };
@@ -41,6 +41,7 @@ function LoyeOnboarding() {
       navigate('/auth');
     }
   }, [navigate, token]);
+  console.log('Step:', step);
 
   const handleInviteSubmit = async (e) => {
     e.preventDefault();
