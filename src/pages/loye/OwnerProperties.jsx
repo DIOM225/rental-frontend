@@ -31,8 +31,7 @@ function OwnerProperties() {
     } catch (err) {
       console.error('Erreur lors du chargement:', err);
     }
-  }, [token]); // ✅ Use useCallback to avoid ESLint warning
-
+  }, [token]);
 
   useEffect(() => {
     fetchProperties();
@@ -164,30 +163,42 @@ function OwnerProperties() {
             </button>
           </div>
         ) : (
-          properties.map((property) => (
-            <div key={property._id} style={styles.propertyCard}>
-              <div style={styles.propertyTop}>
-                <h4 style={{ margin: 0 }}>{property.name}</h4>
-                <span style={styles.statusBadge}>actif</span>
+          properties.map((property) => {
+            const expectedTotal = property.units?.reduce((sum, u) => sum + (u.rent || 0), 0);
+            const confirmedTotal = property.units?.reduce(
+              (sum, u) => (u.renterId ? sum + (u.rent || 0) : sum),
+              0
+            );
+            return (
+              <div key={property._id} style={styles.propertyCard}>
+                <div style={styles.propertyTop}>
+                  <h4 style={{ margin: 0 }}>{property.name}</h4>
+                  <span style={styles.statusBadge}>actif</span>
+                </div>
+                <p style={styles.address}>{property.address}</p>
+                <div style={styles.row}>
+                  <div>Unités <strong>{property.units?.length || 0}</strong></div>
+                  <div>Occupation <strong>0%</strong></div>
+                </div>
+                <div style={styles.row}>
+                  <div>
+                    Revenu mensuel{' '}
+                    <strong>
+                      {confirmedTotal?.toLocaleString()} / {expectedTotal?.toLocaleString()} FCFA
+                    </strong>
+                  </div>
+                  <div>Créé par <strong>{property.createdByRole}</strong></div>
+                </div>
+                <button
+                  style={styles.viewBtn}
+                  onClick={() => navigate(`/loye/property/${property._id}`)}
+                >
+                  <FaEye />
+                  &nbsp; Voir détails
+                </button>
               </div>
-              <p style={styles.address}>{property.address}</p>
-              <div style={styles.row}>
-                <div>Unités <strong>{property.units?.length || 0}</strong></div>
-                <div>Occupation <strong>0%</strong></div>
-              </div>
-              <div style={styles.row}>
-                <div>Revenu mensuel <strong>0 FCFA</strong></div>
-                <div>Créé par <strong>{property.createdByRole}</strong></div>
-              </div>
-              <button
-                style={styles.viewBtn}
-                onClick={() => navigate(`/loye/property/${property._id}`)}
-              >
-                <FaEye />
-                &nbsp; Voir détails
-              </button>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
