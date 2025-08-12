@@ -18,8 +18,13 @@ function OwnerProperties() {
   const [success, setSuccess] = useState('');
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
- 
 
+  // Force "." as thousands separator (e.g., 2500000 -> "2.500.000")
+  const formatNumberCI = (value) => {
+    const n = Number(value) || 0;
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+ 
   const fetchProperties = useCallback(async () => {
     try {
       const res = await axios.get('/api/loye/properties', {
@@ -66,6 +71,20 @@ function OwnerProperties() {
     }
   };
   
+  // 🔢 Aggregate totals for the top revenue card (confirmed / expected)
+  const { totalConfirmed, totalExpected } = properties.reduce(
+    (acc, p) => {
+      const expected = (p.units || []).reduce((sum, u) => sum + (u.rent || 0), 0);
+      const confirmed = (p.units || []).reduce(
+        (sum, u) => (u.renterId ? sum + (u.rent || 0) : sum),
+        0
+      );
+      acc.totalExpected += expected;
+      acc.totalConfirmed += confirmed;
+      return acc;
+    },
+    { totalConfirmed: 0, totalExpected: 0 }
+  );
 
   return (
     <div style={styles.container}>
@@ -122,15 +141,23 @@ function OwnerProperties() {
             <FaBuilding size={36} color="#3B82F6" />
           </div>
         </div>
+
+        {/* ✅ Updated revenue card layout */}
         <div style={styles.metricCard}>
           <div style={styles.metricTop}>
             <div>
               <p style={styles.metricLabel}>Revenu mensuel</p>
-              <h3 style={styles.metricValue}>0 FCFA</h3>
+              <h3 style={styles.metricValue}>
+                {formatNumberCI(totalConfirmed)} FCFA
+              </h3>
+              <p style={styles.metricSub}>
+                / {formatNumberCI(totalExpected)} FCFA
+              </p>
             </div>
             <FaMoneyBillWave size={36} color="#10B981" />
           </div>
         </div>
+
         <div style={styles.metricCard}>
           <div style={styles.metricTop}>
             <div>
@@ -184,7 +211,7 @@ function OwnerProperties() {
                   <div>
                     Revenu mensuel{' '}
                     <strong>
-                      {confirmedTotal?.toLocaleString()} / {expectedTotal?.toLocaleString()} FCFA
+                      {formatNumberCI(confirmedTotal)} / {formatNumberCI(expectedTotal)} FCFA
                     </strong>
                   </div>
                   <div>Créé par <strong>{property.createdByRole}</strong></div>
@@ -223,6 +250,7 @@ const styles = {
   metricTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   metricLabel: { fontSize: '0.95rem', fontWeight: 600, color: '#444', marginBottom: '0.4rem' },
   metricValue: { fontSize: '1.8rem', fontWeight: 700 },
+  metricSub: { fontSize: '0.9rem', color: '#6b7280', margin: 0 }, // 👈 small, muted expected total
   propertiesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem' },
   propertyCard: { background: 'white', padding: '2rem', borderRadius: '12px', boxShadow: '0 3px 8px rgba(0,0,0,0.07)', transition: 'all 0.2s ease', cursor: 'pointer' },
   propertyTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' },
