@@ -1,3 +1,4 @@
+// App.js
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 // 🔹 Shared Layouts & Guards
@@ -22,9 +23,10 @@ import HostDashboard from './pages/host/HostDashboard';
 import HostRequestForm from './pages/HostRequestForm';
 import ResetPassword from './pages/ResetPassword';
 
-// 🔹 Loye
+// 🔹 Loye (use the polished dashboard, NOT the backup)
 import LoyeOnboarding from './pages/loye/LoyeOnboarding';
-import LoyeDashboard from './pages/loye/LoyeDashboard';
+import LoyeDashboard from './pages/loye/LoyeDashboard'; // ✅ polished version
+// ❌ DO NOT import './pages/loye/LoyeDashboard.backup.jsx'
 import OwnerProperties from './pages/loye/OwnerProperties';
 import CreateProperty from './pages/loye/CreateProperty';
 import PropertyDetailView from './pages/loye/PropertyDetailView';
@@ -66,24 +68,18 @@ function App() {
           {/* 🏢 Loye Flow */}
           <Route path="/loye/onboarding" element={<RequireAuth><LoyeOnboarding /></RequireAuth>} />
           <Route path="/loye" element={<RequireAuth><LoyeOnboarding /></RequireAuth>} />
-          <Route path="/loye/dashboard" element={
-            <RequireAuth>
-              <RequireLoyeRole role="renter">
-                <LoyeDashboard />
-              </RequireLoyeRole>
-            </RequireAuth>
-          } />
-          <Route path="/loye/properties" element={
-            <RequireAuth>
-              <OwnerProperties />
-            </RequireAuth>
-          } />
-          <Route path="/loye/create" element={
-            <RequireAuth>
-              <CreateProperty />
-            </RequireAuth>
-          } />
-
+          <Route
+            path="/loye/dashboard"
+            element={
+              <RequireAuth>
+                <RequireLoyeRole role="renter">
+                  <LoyeDashboard />
+                </RequireLoyeRole>
+              </RequireAuth>
+            }
+          />
+          <Route path="/loye/properties" element={<RequireAuth><OwnerProperties /></RequireAuth>} />
+          <Route path="/loye/create" element={<RequireAuth><CreateProperty /></RequireAuth>} />
           <Route path="/loye/property/:id" element={<RequireAuth><PropertyDetailView /></RequireAuth>} />
 
           {/* 🛠 Admin */}
@@ -99,9 +95,10 @@ function App() {
         </Route>
 
         {/* ❌ 404 */}
-        <Route path="*" element={
-          <h2 style={{ padding: '2rem', textAlign: 'center' }}>Page non trouvée</h2>
-        } />
+        <Route
+          path="*"
+          element={<h2 style={{ padding: '2rem', textAlign: 'center' }}>Page non trouvée</h2>}
+        />
       </Routes>
     </Router>
   );

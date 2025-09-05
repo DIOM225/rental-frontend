@@ -184,7 +184,7 @@ function AddListing() {
             style={{ ...styles.tab, ...(type === 'daily' ? styles.tabActive : {}) }}
             type="button"
           >
-            Journalier
+            Residence
           </button>
         </div>
 
