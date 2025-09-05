@@ -59,16 +59,30 @@ function AuthPage() {
       const res = await axios.post(endpoint, payload);
 
       if (isLogin) {
-        const { token, user } = res.data;
-      
-        // ✅ Ensure the role is saved for onboarding check
+        const { token, user, loyeUnitCode } = res.data;
+
+        // ✅ Save auth info
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
-      
+
+        // ✅ Optional: keep loyeRole in sync for older code paths
+        const roleFromLoye = res.data?.user?.loye?.role;
+        if (roleFromLoye) {
+          localStorage.setItem('loyeRole', roleFromLoye);
+        } else {
+          localStorage.removeItem('loyeRole');
+        }
+
+        // ✅ Save renter’s unit code if backend provided it; otherwise clear any stale value
+        if (loyeUnitCode) {
+          localStorage.setItem('loye.unitCode', loyeUnitCode);
+        } else {
+          localStorage.removeItem('loye.unitCode');
+        }
+
         navigate('/');
         window.location.reload();
-      } 
-      else {
+      } else {
         setSuccess('✅ Inscription réussie ! Vous pouvez maintenant vous connecter.');
         setForm({ name: '', email: '', phone: '', password: '', confirmPassword: '' });
         setIsLogin(true);

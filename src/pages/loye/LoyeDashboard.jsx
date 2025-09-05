@@ -136,6 +136,15 @@ function LoyeDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ✅ Read unit code from localStorage once (set by AuthPage after login)
+  const storedUnitCode = useMemo(() => {
+    try {
+      return localStorage.getItem('loye.unitCode') || null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   // compute if any field is missing (pure derived value)
   const missingAny = useMemo(() => {
     if (!unitData) return false;
@@ -155,6 +164,9 @@ function LoyeDashboard() {
   }, [unitData]);
 
   if (!unitData) return null;
+
+  // ✅ Safe unit code used for payments (priority: stored → API → label)
+  const safeUnitCode = storedUnitCode || unitData?.unitCode || null;
 
   return (
     <div style={styles.container}>
@@ -177,6 +189,11 @@ function LoyeDashboard() {
         <h2 style={styles.heading}>Bienvenue, {field(unitData.name, 'name')}</h2>
         <p style={styles.unit}>
           <FaMapMarkerAlt style={styles.iconInline} /> - {field(unitData.unit, 'unit')}
+          {safeUnitCode && (
+            <span style={{ marginLeft: 8, color: '#64748b', fontWeight: 600 }}>
+              | Code: {safeUnitCode}
+            </span>
+          )}
         </p>
       </div>
 
@@ -203,16 +220,23 @@ function LoyeDashboard() {
               <FaMobileAlt /> <span style={styles.waveText}>Wave prêt</span>
             </span>
 
-            {/* ✅ CinetPay Seamless button */}
+            {/* ✅ Use the stored unit code for payment. Disable if missing. */}
             <PayRentButton
-              unitCode={unitData?.unitCode || unitData?.unit || 'S-5000-ID6M'}
+              unitCode={safeUnitCode || undefined}
               period={guessPeriodFromDueDate(unitData?.dueDate)}
               label="Payer le loyer"
+              disabled={!safeUnitCode || !Number.isFinite(unitData?.rentAmount)}
               onAccepted={(resp) => console.log('ACCEPTED', resp)}
               onRefused={(resp) => console.log('REFUSED', resp)}
               onClosed={() => console.log('Checkout closed')}
             />
           </div>
+
+          {!safeUnitCode && (
+            <div style={{ marginTop: 8, color: '#dc2626', fontWeight: 600 }}>
+              Le code du logement est manquant — impossible d’initier le paiement.
+            </div>
+          )}
         </div>
       )}
 
