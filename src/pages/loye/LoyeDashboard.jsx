@@ -23,7 +23,7 @@ function guessPeriodFromDueDate(dueDateStr) {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() + 1 };
   }
-  const monthName = m[2].normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // strip accents
+  const monthName = m[2].normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const month = FR_MONTHS[monthName] || FR_MONTHS[m[2]];
   const year = parseInt(m[3], 10);
   if (!month || !year) {
@@ -36,6 +36,15 @@ function guessPeriodFromDueDate(dueDateStr) {
 function LoyeDashboard() {
   const [unitData, setUnitData] = useState(null);
   const [usingMock, setUsingMock] = useState(false);
+
+  // ✅ Keep a live copy of the unit code from localStorage
+  const [unitCodeLS, setUnitCodeLS] = useState(() => {
+    try {
+      return localStorage.getItem('loye.unitCode') || null;
+    } catch {
+      return null;
+    }
+  });
 
   const mockData = {
     name: 'Madou',
@@ -55,7 +64,7 @@ function LoyeDashboard() {
 
   // ------- helpers -------
   const isBlank = (v) => v == null || (typeof v === 'string' && v.trim() === '');
-  const red = { color: '#dc2626', fontWeight: 600 }; // red-600
+  const red = { color: '#dc2626', fontWeight: 600 };
 
   const fmtDate = (v) => {
     if (!v) return '';
@@ -94,12 +103,13 @@ function LoyeDashboard() {
     return out;
   };
 
-  // field renderer with red fallback (NO state updates here)
+  // field renderer with red fallback
   const field = (val, labelForFallback) =>
     (isBlank(val) && !Number.isFinite(val))
       ? <span style={red}>(à relier à la DB: {labelForFallback})</span>
       : <>{val}</>;
 
+  // 🔁 Fetch dashboard data
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -136,16 +146,50 @@ function LoyeDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ Read unit code from localStorage once (set by AuthPage after login)
-  const storedUnitCode = useMemo(() => {
-    try {
-      return localStorage.getItem('loye.unitCode') || null;
-    } catch {
-      return null;
+  // ✅ If no unit code yet, try URL ?unitCode=... or /auth/me, then keep state in sync
+  useEffect(() => {
+    if (unitCodeLS) return;
+
+    // 1) URL query
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = (params.get('unitCode') || params.get('unit') || params.get('code'))?.trim();
+    if (fromUrl) {
+      try { localStorage.setItem('loye.unitCode', fromUrl); } catch {}
+      setUnitCodeLS(fromUrl);
+      return;
     }
+
+    // 2) Backend /auth/me
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    (async () => {
+      try {
+        const me = await axios.get('/api/auth/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const code = me?.data?.loyeUnitCode || null;
+        if (code) {
+          try { localStorage.setItem('loye.unitCode', code); } catch {}
+          setUnitCodeLS(code);
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, [unitCodeLS]);
+
+  // Optional: react to 'storage' changes from other tabs
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === 'loye.unitCode') {
+        setUnitCodeLS(e.newValue || null);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  // compute if any field is missing (pure derived value)
   const missingAny = useMemo(() => {
     if (!unitData) return false;
     const candidates = [
@@ -165,8 +209,8 @@ function LoyeDashboard() {
 
   if (!unitData) return null;
 
-  // ✅ Safe unit code used for payments (priority: stored → API → label)
-  const safeUnitCode = storedUnitCode || unitData?.unitCode || null;
+  // ✅ Safe unit code used for payments (priority: localStorage → API → null)
+  const safeUnitCode = unitCodeLS || unitData?.unitCode || null;
 
   return (
     <div style={styles.container}>
@@ -220,7 +264,6 @@ function LoyeDashboard() {
               <FaMobileAlt /> <span style={styles.waveText}>Wave prêt</span>
             </span>
 
-            {/* ✅ Use the stored unit code for payment. Disable if missing. */}
             <PayRentButton
               unitCode={safeUnitCode || undefined}
               period={guessPeriodFromDueDate(unitData?.dueDate)}
