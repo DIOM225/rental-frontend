@@ -18,7 +18,7 @@ function guessPeriodFromDueDate(dueDateStr) {
   if (!dueDateStr || typeof dueDateStr !== 'string') {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() + 1 };
-  }
+    }
   const m = dueDateStr.trim().toLowerCase().match(/(\d{1,2})\s+([a-zéûôîàèç]+)\s+(\d{4})/i);
   if (!m) {
     const now = new Date();
@@ -51,6 +51,15 @@ const formatFCFA = (n) => {
 
 const capitalizeWords = (s) =>
   typeof s === 'string' ? s.replace(/\b\p{L}/gu, (c) => c.toUpperCase()) : s;
+
+// Try to normalize a CI phone to 10 digits (strip +225 etc.)
+function normalizePhoneCI(input) {
+  if (!input) return null;
+  const digits = String(input).replace(/\D/g, '');
+  // remove +225 / 00225 if present
+  const trimmed = digits.replace(/^(225|00225)/, '');
+  return /^\d{10}$/.test(trimmed) ? trimmed : null;
+}
 
 function normalizeApi(raw) {
   const out = {
@@ -88,6 +97,8 @@ function LoyeDashboard() {
   const [unitData, setUnitData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('history'); // 'history' | 'details' | 'contact'
+  const [history, setHistory] = useState([]); // simple list of payments
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const red = { color: '#dc2626', fontWeight: 600 };
 
@@ -120,6 +131,28 @@ function LoyeDashboard() {
 
     fetchData();
   }, []);
+
+  // fetch renter payment history (best effort; API may not exist yet)
+  const fetchHistory = async (unitCode) => {
+    if (!unitCode) return;
+    try {
+      setHistoryLoading(true);
+      const token = localStorage.getItem('token');
+      // expected backend route (you can implement later):
+      // GET /api/loye/renter/payments?unitCode=XXXX
+      const { data } = await axios.get(`/api/loye/renter/payments`, {
+        params: { unitCode },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setHistory(Array.isArray(data?.payments) ? data.payments : []);
+    } catch (e) {
+      // graceful fallback
+      console.warn('No payments API yet or failed to load history.', e?.message || e);
+      setHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
 
   // inject responsive CSS + skeleton keyframes once
   useEffect(() => {
@@ -170,6 +203,16 @@ function LoyeDashboard() {
       return null;
     }
   }, []);
+
+  // renter phone hint for CinetPay (10-digit CI)
+  const renterPhone10 = useMemo(() => normalizePhoneCI(unitData?.phone), [unitData?.phone]);
+
+  // kick off history fetch when we know the code
+  useEffect(() => {
+    const code = storedUnitCode || unitData?.unitCode || null;
+    fetchHistory(code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storedUnitCode, unitData?.unitCode]);
 
   if (loading) {
     return (
@@ -234,6 +277,21 @@ function LoyeDashboard() {
       ? <span style={red}>(à relier à la DB: {labelForFallback})</span>
       : <>{val}</>;
 
+  // when checkout closes or resolves, refresh history
+  const handleAccepted = (resp) => {
+    console.log('ACCEPTED', resp);
+    fetchHistory(safeUnitCode);
+    alert('Paiement accepté ✅');
+  };
+  const handleRefused = (resp) => {
+    console.log('REFUSED', resp);
+    alert('Paiement refusé ❌');
+  };
+  const handleClosed = () => {
+    console.log('Checkout closed');
+    fetchHistory(safeUnitCode);
+  };
+
   return (
     <div className="loye-container" style={styles.container}>
       {/* Header */}
@@ -283,9 +341,13 @@ function LoyeDashboard() {
               period={guessPeriodFromDueDate(unitData?.dueDate)}
               label="Payer le loyer"
               disabled={payDisabled}
-              onAccepted={(resp) => console.log('ACCEPTED', resp)}
-              onRefused={(resp) => console.log('REFUSED', resp)}
-              onClosed={() => console.log('Checkout closed')}
+              // ✅ Hints to route directly to Wave/Orange CI
+              channels="WALLET"
+              renterCountry="CI"
+              renterPhone10={renterPhone10 || undefined}
+              onAccepted={handleAccepted}
+              onRefused={handleRefused}
+              onClosed={handleClosed}
             />
           </div>
         </div>
@@ -354,10 +416,30 @@ function LoyeDashboard() {
       {activeTab === 'history' && (
         <div className="loye-card" style={styles.card}>
           <h3 style={styles.cardTitle}>🧾 Historique des paiements</h3>
-          <EmptyState
-            title="Aucun paiement pour le moment"
-            helper="Votre historique apparaîtra ici après votre premier paiement."
-          />
+
+          {historyLoading ? (
+            <div style={{ ...styles.skel, height: 60 }} />
+          ) : history.length === 0 ? (
+            <EmptyState
+              title="Aucun paiement pour le moment"
+              helper="Votre historique apparaîtra ici après votre premier paiement."
+            />
+          ) : (
+            <div style={{ display: 'grid', gap: 8 }}>
+              {history.map((p) => (
+                <div key={p._id || p.transactionId} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, padding: '10px 12px', background: '#f8fafc', border: '1px solid #eef2f7', borderRadius: 10 }}>
+                  <div style={{ fontWeight: 700 }}>
+                    {p.period?.month}/{p.period?.year} — {p.unitCode}
+                    <div style={{ fontSize: 12, color: '#64748b' }}>{p.transactionId}</div>
+                  </div>
+                  <div style={{ fontWeight: 800 }}>{formatFCFA(Number.isFinite(p.netAmount) && p.netAmount > 0 ? p.netAmount : p.amount)}</div>
+                  <div style={{ fontWeight: 800, color: p.status === 'ACCEPTED' ? '#065f46' : p.status === 'REFUSED' ? '#991b1b' : '#92400e' }}>
+                    {p.status}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
