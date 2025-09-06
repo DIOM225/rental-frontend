@@ -339,6 +339,7 @@ function LoyeDashboard() {
             <PayRentButton
               unitCode={safeUnitCode || undefined}
               period={guessPeriodFromDueDate(unitData?.dueDate)}
+              amountXof={unitData?.rentAmount}
               label="Payer le loyer"
               disabled={payDisabled}
               // ✅ Hints to route directly to Wave/Orange CI
