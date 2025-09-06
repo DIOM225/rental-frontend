@@ -1,3 +1,4 @@
+// 📄 client/src/pages/loye/LoyeDashboard.jsx
 import { useEffect, useState, useMemo } from 'react';
 import axios from '../../utils/axiosInstance';
 import PayRentButton from '../../components/PayRentButton';
@@ -33,419 +34,523 @@ function guessPeriodFromDueDate(dueDateStr) {
   return { year, month };
 }
 
+// ---------- helpers (no hooks) ----------
+const isBlank = (v) => v == null || (typeof v === 'string' && v.trim() === '');
+
+const fmtDate = (v) => {
+  if (!v) return '';
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return String(v);
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+};
+
+const formatFCFA = (n) => {
+  if (!Number.isFinite(n)) return '';
+  return `${n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} FCFA`;
+};
+
+const capitalizeWords = (s) =>
+  typeof s === 'string' ? s.replace(/\b\p{L}/gu, (c) => c.toUpperCase()) : s;
+
+function normalizeApi(raw) {
+  const out = {
+    name: raw?.name || raw?.renterName || raw?.user?.name,
+    unit: raw?.unit || raw?.unitLabel || raw?.unitName,
+    unitCode: raw?.unitCode || raw?.unit?.code,
+    rentAmount: typeof raw?.rentAmount === 'number'
+      ? raw.rentAmount
+      : (typeof raw?.rent === 'number' ? raw.rent : undefined),
+    dueDate: raw?.dueDate ? fmtDate(raw.dueDate) : (raw?.nextDueDate ? fmtDate(raw.nextDueDate) : raw?.dueDateText),
+    daysRemaining: typeof raw?.daysRemaining === 'number'
+      ? raw.daysRemaining
+      : (() => {
+          if (raw?.dueDate || raw?.nextDueDate) {
+            const due = new Date(raw.dueDate || raw.nextDueDate);
+            const today = new Date();
+            return Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+          }
+          return undefined;
+        })(),
+    leaseEnd: raw?.leaseEnd ? fmtDate(raw.leaseEnd) : raw?.leaseEndText,
+    unitType: raw?.unitType || raw?.type || raw?.unit?.type,
+    email: raw?.email || raw?.renter?.email || raw?.user?.email,
+    phone: raw?.phone || raw?.renter?.phone || raw?.user?.phone,
+    mgmtEmail: raw?.mgmtEmail || raw?.manager?.email,
+    mgmtPhone: raw?.mgmtPhone || raw?.manager?.phone,
+    hours: raw?.hours || raw?.manager?.hours || raw?.officeHours,
+    propertyName: raw?.propertyName,
+    propertyAddress: raw?.propertyAddress
+  };
+  return out;
+}
+
 function LoyeDashboard() {
   const [unitData, setUnitData] = useState(null);
-  const [usingMock, setUsingMock] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('history'); // 'history' | 'details' | 'contact'
 
-  // ✅ Keep a live copy of the unit code from localStorage
-  const [unitCodeLS, setUnitCodeLS] = useState(() => {
-    try {
-      return localStorage.getItem('loye.unitCode') || null;
-    } catch {
-      return null;
-    }
-  });
-
-  const mockData = {
-    name: 'Madou',
-    unit: 'Unit 101',
-    rentAmount: 2000,
-    dueDate: '1 Août 2025',
-    daysRemaining: 2,
-    leaseEnd: '30 Décembre 2024',
-    unitType: '2 Pièces',
-    email: 'diomande.madou22@gmail.com',
-    phone: '0700000000',
-    mgmtEmail: 'gestion@loye.com',
-    mgmtPhone: '+2250707070707',
-    hours: 'Lun–Ven: 9h–18h',
-    unitCode: 'S-5000-ID6M'
-  };
-
-  // ------- helpers -------
-  const isBlank = (v) => v == null || (typeof v === 'string' && v.trim() === '');
   const red = { color: '#dc2626', fontWeight: 600 };
 
-  const fmtDate = (v) => {
-    if (!v) return '';
-    const d = new Date(v);
-    if (Number.isNaN(d.getTime())) return String(v);
-    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-  };
-
-  const normalizeApi = (raw) => {
-    const out = {
-      name: raw?.name || raw?.renterName || raw?.user?.name,
-      unit: raw?.unit || raw?.unitLabel || raw?.unitName,
-      unitCode: raw?.unitCode || raw?.unit?.code,
-      rentAmount: typeof raw?.rentAmount === 'number'
-        ? raw.rentAmount
-        : (typeof raw?.rent === 'number' ? raw.rent : undefined),
-      dueDate: raw?.dueDate ? fmtDate(raw.dueDate) : (raw?.nextDueDate ? fmtDate(raw.nextDueDate) : raw?.dueDateText),
-      daysRemaining: typeof raw?.daysRemaining === 'number'
-        ? raw.daysRemaining
-        : (() => {
-            if (raw?.dueDate || raw?.nextDueDate) {
-              const due = new Date(raw.dueDate || raw.nextDueDate);
-              const today = new Date();
-              return Math.ceil((due - today) / (1000 * 60 * 60 * 24));
-            }
-            return undefined;
-          })(),
-      leaseEnd: raw?.leaseEnd ? fmtDate(raw.leaseEnd) : raw?.leaseEndText,
-      unitType: raw?.unitType || raw?.type || raw?.unit?.type,
-      email: raw?.email || raw?.renter?.email || raw?.user?.email,
-      phone: raw?.phone || raw?.renter?.phone || raw?.user?.phone,
-      mgmtEmail: raw?.mgmtEmail || raw?.manager?.email,
-      mgmtPhone: raw?.mgmtPhone || raw?.manager?.phone,
-      hours: raw?.hours || raw?.manager?.hours || raw?.officeHours
-    };
-    return out;
-  };
-
-  // field renderer with red fallback
-  const field = (val, labelForFallback) =>
-    (isBlank(val) && !Number.isFinite(val))
-      ? <span style={red}>(à relier à la DB: {labelForFallback})</span>
-      : <>{val}</>;
-
-  // 🔁 Fetch dashboard data
+  // load dashboard data
   useEffect(() => {
     const fetchData = async () => {
       try {
-        setUsingMock(false);
         const token = localStorage.getItem('token');
         const res = await axios.get('/api/loye/renter/dashboard', {
           headers: { Authorization: `Bearer ${token}` }
         });
 
-        if (res?.data && typeof res.data === 'object') {
-          const normalized = normalizeApi(res.data);
-          const hasCore =
-            !isBlank(normalized.name) ||
-            !isBlank(normalized.unit) ||
-            Number.isFinite(normalized.rentAmount);
-
-          if (hasCore) {
-            setUnitData(normalized);
-            return;
-          }
+        const normalized = normalizeApi(res?.data || {});
+        try {
+          const localUser = JSON.parse(localStorage.getItem('user'));
+          if (!normalized.name && localUser?.name) normalized.name = localUser.name;
+        } catch {}
+        if (!normalized.unit && res?.data?.propertyName && (res?.data?.unitCode || res?.data?.unit?.code)) {
+          normalized.unit = res.data.propertyName;
         }
 
-        // API incomplete → mock
-        setUsingMock(true);
-        setUnitData(mockData);
-      } catch (err) {
-        // API failed → mock
-        setUsingMock(true);
-        setUnitData(mockData);
+        setUnitData(normalized);
+      } catch (e) {
+        console.error('Dashboard load failed:', e);
+        setUnitData({});
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ If no unit code yet, try URL ?unitCode=... or /auth/me, then keep state in sync
+  // inject responsive CSS + skeleton keyframes once
   useEffect(() => {
-    if (unitCodeLS) return;
+    if (typeof document === 'undefined') return;
+    if (document.getElementById('loye-dashboard-styles')) return;
 
-    // 1) URL query
-    const params = new URLSearchParams(window.location.search);
-    const fromUrl = (params.get('unitCode') || params.get('unit') || params.get('code'))?.trim();
-    if (fromUrl) {
-      try { localStorage.setItem('loye.unitCode', fromUrl); } catch {}
-      setUnitCodeLS(fromUrl);
-      return;
+    const css = `
+@keyframes skel { 0%{background-position:100% 0} 100%{background-position:0 0} }
+
+/* Mobile tweaks */
+@media (max-width: 640px) {
+  .loye-container { padding: 1rem !important; }
+  .loye-heading { font-size: 1.5rem !important; }
+  .loye-header-sub { gap: 6px !important; }
+  .loye-chip { font-size: 11px !important; padding: 2px 8px !important; }
+
+  .loye-banner { padding: 0.75rem !important; }
+  .loye-banner-inner { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+  .loye-banner-buttons { width: 100% !important; gap: 8px !important; }
+  .loye-banner-buttons > * { flex: 1 1 auto !important; }
+
+  .loye-metrics { grid-template-columns: 1fr !important; }
+  .loye-metric-value { font-size: 1.2rem !important; }
+
+  .loye-tabs { overflow-x: auto; white-space: nowrap; }
+  .loye-tab { min-width: 140px; }
+
+  .loye-card { padding: 1rem !important; }
+  .loye-detail-row { flex-direction: column !important; align-items: flex-start !important; gap: 6px !important; }
+}
+
+/* Very small screens */
+@media (max-width: 380px) {
+  .loye-tab { min-width: 120px; }
+}
+`;
+    const style = document.createElement('style');
+    style.id = 'loye-dashboard-styles';
+    style.innerHTML = css;
+    document.head.appendChild(style);
+  }, []);
+
+  // read stored unit code ONCE
+  const storedUnitCode = useMemo(() => {
+    try {
+      return localStorage.getItem('loye.unitCode') || null;
+    } catch {
+      return null;
     }
-
-    // 2) Backend /auth/me
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
-    (async () => {
-      try {
-        const me = await axios.get('/api/auth/me', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const code = me?.data?.loyeUnitCode || null;
-        if (code) {
-          try { localStorage.setItem('loye.unitCode', code); } catch {}
-          setUnitCodeLS(code);
-        }
-      } catch {
-        // ignore
-      }
-    })();
-  }, [unitCodeLS]);
-
-  // Optional: react to 'storage' changes from other tabs
-  useEffect(() => {
-    const onStorage = (e) => {
-      if (e.key === 'loye.unitCode') {
-        setUnitCodeLS(e.newValue || null);
-      }
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  const missingAny = useMemo(() => {
-    if (!unitData) return false;
-    const candidates = [
-      unitData.name, unitData.unit, unitData.rentAmount,
-      unitData.dueDate, unitData.daysRemaining, unitData.leaseEnd,
-      unitData.unitType, unitData.email, unitData.phone,
-      unitData.mgmtEmail, unitData.mgmtPhone, unitData.hours
-    ];
-    return candidates.some(v => (isBlank(v) && !Number.isFinite(v)));
-  }, [unitData]);
-
-  const isRentDue = useMemo(() => {
-    if (!unitData) return false;
-    const dr = unitData.daysRemaining;
-    return Number.isFinite(dr) ? dr <= 3 : false;
-  }, [unitData]);
+  if (loading) {
+    return (
+      <div className="loye-container" style={styles.container}>
+        <div style={{ ...styles.skel, width: 220, height: 26 }} />
+        <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+          <div style={{ ...styles.skel, width: 160, height: 12 }} />
+          <div style={{ ...styles.skel, width: 110, height: 12 }} />
+        </div>
+        <div style={{ ...styles.skel, height: 90, marginTop: 20 }} />
+        <div className="loye-metrics" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginTop: 16 }}>
+          <div style={{ ...styles.skel, height: 90 }} />
+          <div style={{ ...styles.skel, height: 90 }} />
+          <div style={{ ...styles.skel, height: 90 }} />
+          <div style={{ ...styles.skel, height: 90 }} />
+        </div>
+      </div>
+    );
+  }
 
   if (!unitData) return null;
 
-  // ✅ Safe unit code used for payments (priority: localStorage → API → null)
-  const safeUnitCode = unitCodeLS || unitData?.unitCode || null;
+  const safeUnitCode = storedUnitCode || unitData?.unitCode || null;
+  const unitLabel = unitData?.unit || '';
+
+  // ✅ NEW: avoid repeating the code chip if already present next to the address/label
+  const showUnitChip = Boolean(safeUnitCode && !(unitLabel || '').includes(safeUnitCode));
+
+  const dr = Number.isFinite(unitData?.daysRemaining) ? unitData.daysRemaining : null;
+  const bannerVariant = dr == null
+    ? 'neutral'
+    : (dr > 3 ? 'success' : (dr >= 0 ? 'warning' : 'danger'));
+
+  const bannerStyle = {
+    ...styles.banner,
+    ...(bannerVariant === 'success' ? styles.bannerSuccess
+      : bannerVariant === 'warning' ? styles.bannerWarning
+      : bannerVariant === 'danger' ? styles.bannerDanger
+      : {}),
+  };
+
+  const statusColor = bannerVariant === 'success'
+    ? '#065f46'
+    : bannerVariant === 'warning'
+    ? '#92400e'
+    : bannerVariant === 'danger'
+    ? '#991b1b'
+    : '#334155';
+
+  let statusLine = 'Statut du loyer';
+  if (dr != null) {
+    if (dr > 1) statusLine = `Paiement dans ${dr} jours`;
+    else if (dr === 1) statusLine = 'Paiement dans 1 jour';
+    else if (dr === 0) statusLine = 'Paiement aujourd’hui';
+    else statusLine = `En retard de ${Math.abs(dr)} jours`;
+  }
+
+  const payDisabled = !safeUnitCode || !Number.isFinite(unitData?.rentAmount);
+
+  const field = (val, labelForFallback) =>
+    (isBlank(val) && !Number.isFinite(val))
+      ? <span style={red}>(à relier à la DB: {labelForFallback})</span>
+      : <>{val}</>;
 
   return (
-    <div style={styles.container}>
-      {(usingMock || missingAny) && (
-        <div style={styles.alert}>
-          {usingMock && (
-            <div style={{ ...styles.badge, background: '#fee2e2', color: '#991b1b' }}>
-              ⚠️ Données fictives (mock) — connectez l’API pour afficher les vraies données
-            </div>
-          )}
-          {missingAny && (
-            <div style={{ ...styles.badge, background: '#fee2e2', color: '#991b1b' }}>
-              ⚠️ Champs manquants — les valeurs en <strong style={{ color: '#dc2626' }}>rouge</strong> doivent être reliées à la base de données
-            </div>
+    <div className="loye-container" style={styles.container}>
+      {/* Header */}
+      <div className="loye-header" style={styles.headerRow}>
+        <h2 className="loye-heading" style={styles.heading}>Bienvenue, {capitalizeWords(field(unitData.name, 'name'))}</h2>
+
+        <div className="loye-header-sub" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', color: '#475569' }}>
+          <span style={{ display: 'flex', alignItems: 'center' }}>
+            <FaMapMarkerAlt style={styles.iconInline} />
+            {field(unitLabel, 'unit')}
+          </span>
+
+          {showUnitChip && (
+            <span className="loye-chip" style={styles.chip}>Code: {safeUnitCode}</span>
           )}
         </div>
-      )}
-
-      <div style={styles.headerRow}>
-        <h2 style={styles.heading}>Bienvenue, {field(unitData.name, 'name')}</h2>
-        <p style={styles.unit}>
-          <FaMapMarkerAlt style={styles.iconInline} /> - {field(unitData.unit, 'unit')}
-          {safeUnitCode && (
-            <span style={{ marginLeft: 8, color: '#64748b', fontWeight: 600 }}>
-              | Code: {safeUnitCode}
-            </span>
-          )}
-        </p>
       </div>
 
-      {isRentDue && (
-        <div style={styles.banner}>
+      {/* Banner */}
+      <div className="loye-banner" style={bannerStyle}>
+        <div className="loye-banner-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 16 }}>
           <div>
-            <p style={styles.bannerTitle}>🕒 Statut du loyer</p>
+            <p style={{ ...styles.bannerTitle, color: statusColor }}>🕒 {statusLine}</p>
             <p style={styles.bannerText}>
-              Paiement dans {field(unitData.daysRemaining, 'daysRemaining')} jours
-            </p>
-            <p style={styles.bannerText}>
-              Montant:&nbsp;
+              Prochain paiement de{' '}
               <strong>
                 {field(
-                  Number.isFinite(unitData.rentAmount) ? `${unitData.rentAmount} FCFA` : '',
+                  Number.isFinite(unitData.rentAmount) ? formatFCFA(unitData.rentAmount) : '',
                   'rentAmount'
                 )}
               </strong>{' '}
-              dû le {field(unitData.dueDate, 'dueDate')}
+              {unitData.dueDate && <>dû le {field(unitData.dueDate, 'dueDate')}</>}
             </p>
+            {unitData.propertyAddress && (
+              <p style={{ ...styles.bannerText, marginTop: 4 }}>
+                📍 {unitData.propertyAddress}
+              </p>
+            )}
           </div>
-          <div style={styles.bannerButtons}>
+
+          <div className="loye-banner-buttons" style={styles.bannerButtons}>
             <span style={styles.waveReady}>
               <FaMobileAlt /> <span style={styles.waveText}>Wave prêt</span>
             </span>
-
             <PayRentButton
               unitCode={safeUnitCode || undefined}
               period={guessPeriodFromDueDate(unitData?.dueDate)}
               label="Payer le loyer"
-              disabled={!safeUnitCode || !Number.isFinite(unitData?.rentAmount)}
+              disabled={payDisabled}
               onAccepted={(resp) => console.log('ACCEPTED', resp)}
               onRefused={(resp) => console.log('REFUSED', resp)}
               onClosed={() => console.log('Checkout closed')}
             />
           </div>
+        </div>
 
-          {!safeUnitCode && (
-            <div style={{ marginTop: 8, color: '#dc2626', fontWeight: 600 }}>
-              Le code du logement est manquant — impossible d’initier le paiement.
-            </div>
-          )}
+        {!safeUnitCode && (
+          <div style={{ marginTop: 8, color: '#dc2626', fontWeight: 600 }}>
+            Le code du logement est manquant — impossible d’initier le paiement.
+          </div>
+        )}
+      </div>
+
+      {/* Metrics */}
+      <div className="loye-metrics" style={styles.metricsRow}>
+        <MetricCard
+          label="Loyer mensuel"
+          value={field(Number.isFinite(unitData.rentAmount) ? formatFCFA(unitData.rentAmount) : '', 'rentAmount')}
+          icon={<FaMoneyBillWave size={18} color="#065f46" />}
+          dot="#10B981"
+        />
+        <MetricCard
+          label="Prochaine échéance"
+          value={field(unitData.dueDate?.split?.(',')[0] || unitData.dueDate, 'dueDate')}
+          icon={<FaCalendarAlt size={18} color="#1d4ed8" />}
+          dot="#3B82F6"
+        />
+        <MetricCard
+          label="Fin du bail"
+          value={field(unitData.leaseEnd, 'leaseEnd')}
+          icon={<FaClock size={18} color="#6d28d9" />}
+          dot="#8B5CF6"
+        />
+        <MetricCard
+          label="Type"
+          value={field(unitData.unitType, 'unitType')}
+          icon={<FaHome size={18} color="#c2410c" />}
+          dot="#F97316"
+        />
+      </div>
+
+      {/* TABS */}
+      <div className="loye-tabs" style={styles.tabsRow}>
+        <button
+          className="loye-tab"
+          onClick={() => setActiveTab('history')}
+          style={{ ...styles.tabBtn, ...(activeTab === 'history' ? styles.activeTab : {}) }}
+        >
+          Historique
+        </button>
+        <button
+          className="loye-tab"
+          onClick={() => setActiveTab('details')}
+          style={{ ...styles.tabBtn, ...(activeTab === 'details' ? styles.activeTab : {}) }}
+        >
+          Détails
+        </button>
+        <button
+          className="loye-tab"
+          onClick={() => setActiveTab('contact')}
+          style={{ ...styles.tabBtn, ...(activeTab === 'contact' ? styles.activeTab : {}) }}
+        >
+          Contact
+        </button>
+      </div>
+
+      {/* TAB PANELS */}
+      {activeTab === 'history' && (
+        <div className="loye-card" style={styles.card}>
+          <h3 style={styles.cardTitle}>🧾 Historique des paiements</h3>
+          <EmptyState
+            title="Aucun paiement pour le moment"
+            helper="Votre historique apparaîtra ici après votre premier paiement."
+          />
         </div>
       )}
 
-      <div style={styles.metricsRow}>
-        <div style={styles.metricCard}>
-          <div style={styles.metricLeft}>
-            <p style={styles.metricLabel}>Loyer mensuel</p>
-            <h3 style={styles.metricValue}>
-              {field(
-                Number.isFinite(unitData.rentAmount) ? `${unitData.rentAmount} FCFA` : '',
-                'rentAmount'
-              )}
-            </h3>
+      {activeTab === 'details' && (
+        <div className="loye-card" style={styles.card}>
+          <h3 style={styles.cardTitle}>🏠 Détails du logement</h3>
+          <div style={styles.detailList}>
+            <DetailRow label="Immeuble" value={field(unitData.propertyName, 'propertyName')} />
+            <DetailRow label="Adresse" value={field(unitData.propertyAddress, 'propertyAddress')} />
+            <DetailRow label="Type" value={field(unitData.unitType, 'unitType')} />
+            <DetailRow label="Code logement" value={safeUnitCode || <span style={red}>(à relier à la DB: unitCode)</span>} />
+            <DetailRow label="Loyer mensuel" value={field(Number.isFinite(unitData.rentAmount) ? formatFCFA(unitData.rentAmount) : '', 'rentAmount')} />
+            <DetailRow label="Prochaine échéance" value={field(unitData.dueDate?.split?.(',')[0] || unitData.dueDate, 'dueDate')} />
+            <DetailRow label="Fin du bail" value={field(unitData.leaseEnd, 'leaseEnd')} />
           </div>
-          <FaMoneyBillWave size={24} color="#10B981" />
         </div>
+      )}
 
-        <div style={styles.metricCard}>
-          <div style={styles.metricLeft}>
-            <p style={styles.metricLabel}>Prochaine échéance</p>
-            <h3 style={styles.metricValue}>
-              {field(unitData.dueDate?.split?.(',')[0] || unitData.dueDate, 'dueDate')}
-            </h3>
+      {activeTab === 'contact' && (
+        <div className="loye-card" style={styles.card}>
+          <h3 style={styles.cardTitle}>📞 Informations de contact</h3>
+          <div style={styles.infoRow}>
+            <div style={{ flex: 1 }}>
+              <h4 style={styles.infoHeader}>Vos infos</h4>
+              <p style={styles.infoText}>
+                📧 Email: {field(unitData.email, 'email')}
+                <br />
+                📞 Téléphone: {field(unitData.phone, 'phone')}
+              </p>
+            </div>
+            <div style={{ flex: 1 }}>
+              <h4 style={styles.infoHeader}>Gestionnaire</h4>
+              <p style={styles.infoText}>
+                📧 Email: {field(unitData.mgmtEmail, 'mgmtEmail')}
+                <br />
+                📞 Téléphone: {field(unitData.mgmtPhone, 'mgmtPhone')}
+                <br />
+                ⏰ Heures: {field(unitData.hours, 'hours')}
+              </p>
+            </div>
           </div>
-          <FaCalendarAlt size={22} color="#3B82F6" />
         </div>
+      )}
+    </div>
+  );
+}
 
-        <div style={styles.metricCard}>
-          <div style={styles.metricLeft}>
-            <p style={styles.metricLabel}>Fin du bail</p>
-            <h3 style={styles.metricValue}>{field(unitData.leaseEnd, 'leaseEnd')}</h3>
-          </div>
-          <FaClock size={22} color="#8B5CF6" />
-        </div>
-
-        <div style={styles.metricCard}>
-          <div style={styles.metricLeft}>
-            <p style={styles.metricLabel}>Type</p>
-            <h3 style={styles.metricValue}>{field(unitData.unitType, 'unitType')}</h3>
-          </div>
-          <FaHome size={22} color="#F97316" />
-        </div>
+/* ---------- Small presentational helpers ---------- */
+function MetricCard({ label, value, icon, dot }) {
+  return (
+    <div style={styles.metricCard}>
+      <div style={styles.metricLeft}>
+        <p style={styles.metricLabel}>{label}</p>
+        <h3 className="loye-metric-value" style={styles.metricValue}>{value}</h3>
       </div>
-
-      <div style={styles.tabsRow}>
-        <button style={styles.tabBtn}>Historique</button>
-        <button style={styles.tabBtn}>Détails</button>
-        <button style={{ ...styles.tabBtn, ...styles.activeTab }}>Contact</button>
-      </div>
-
-      <div style={styles.contactCard}>
-        <h3 style={styles.contactTitle}>📞 Informations de contact</h3>
-        <p style={styles.infoNote}>ℹ️ Pour les urgences ou demandes, contactez la gestion.</p>
-        <div style={styles.infoRow}>
-          <div>
-            <h4 style={styles.infoHeader}>Vos infos</h4>
-            <p>
-              📧 Email: {field(unitData.email, 'email')}
-              <br />
-              📞 Téléphone: {field(unitData.phone, 'phone')}
-            </p>
-          </div>
-          <div>
-            <h4 style={styles.infoHeader}>Gestionnaire</h4>
-            <p>
-              📧 Email: {field(unitData.mgmtEmail, 'mgmtEmail')}
-              <br />
-              📞 Téléphone: {field(unitData.mgmtPhone, 'mgmtPhone')}
-              <br />
-              ⏰ Heures: {field(unitData.hours, 'hours')}
-            </p>
-          </div>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, borderRadius: 12, background: '#f8fafc', border: '1px solid #eef2f7', position: 'relative' }}>
+        {icon}
+        <span style={{ position: 'absolute', right: -4, top: -4, width: 10, height: 10, background: dot, borderRadius: '50%' }} />
       </div>
     </div>
   );
 }
 
+function DetailRow({ label, value }) {
+  return (
+    <div className="loye-detail-row" style={styles.detailRow}>
+      <span style={styles.detailLabel}>{label}</span>
+      <span style={styles.detailValue}>{value}</span>
+    </div>
+  );
+}
+
+function EmptyState({ title, helper }) {
+  return (
+    <div style={styles.emptyWrap}>
+      <div style={styles.emptyIcon}>💳</div>
+      <div style={{ fontWeight: 700, marginBottom: 4 }}>{title}</div>
+      <div style={{ color: '#64748b' }}>{helper}</div>
+    </div>
+  );
+}
+
+/* ---------- Styles ---------- */
 const styles = {
   container: { backgroundColor: '#f8fafc', padding: '2rem', minHeight: '100vh' },
-  alert: { marginBottom: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' },
-  badge: { padding: '0.5rem 0.75rem', borderRadius: 8, fontSize: 14, fontWeight: 700 },
 
-  headerRow: { display: 'flex', flexDirection: 'column', marginBottom: '1rem' },
-  heading: { fontSize: '2rem', fontWeight: 700, marginBottom: '0.2rem' },
-  unit: { display: 'flex', alignItems: 'center', color: '#475569' },
-  iconInline: { marginRight: 4 },
+  // skeleton blocks
+  skel: {
+    background: 'linear-gradient(90deg, #e9eef5 25%, #f3f6fb 37%, #e9eef5 63%)',
+    backgroundSize: '400% 100%',
+    borderRadius: 8,
+    animation: 'skel 1.4s ease infinite'
+  },
+
+  headerRow: { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: '1rem' },
+  heading: { fontSize: '2rem', fontWeight: 800, margin: 0, letterSpacing: 0.2 },
+  iconInline: { marginRight: 6 },
+  chip: {
+    background: '#eef2ff',
+    color: '#3730a3',
+    border: '1px solid #e0e7ff',
+    padding: '2px 10px',
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: 700
+  },
 
   banner: {
-    backgroundColor: '#fffbeb',
-    border: '1px solid #fef3c7',
     padding: '1rem',
-    borderRadius: '12px',
-    marginBottom: '1.5rem',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap'
+    borderRadius: '14px',
+    margin: '1rem 0 1.5rem',
+    backgroundColor: '#f8fafc',
+    border: '1px solid #e2e8f0'
   },
-  bannerTitle: { fontWeight: 700, fontSize: '1rem', marginBottom: 4 },
-  bannerText: { margin: 0, fontSize: '0.95rem', color: '#334155' },
+  bannerSuccess: { backgroundColor: '#ecfdf5', border: '1px solid #d1fae5' },
+  bannerWarning: { backgroundColor: '#fffbeb', border: '1px solid #fef3c7' },
+  bannerDanger:  { backgroundColor: '#fef2f2', border: '1px solid #fee2e2' },
+
+  bannerTitle: { fontWeight: 800, fontSize: '1rem', margin: 0 },
+  bannerText: { margin: '6px 0 0', fontSize: '0.95rem', color: '#334155' },
   bannerButtons: { display: 'flex', alignItems: 'center', gap: '0.8rem' },
   waveReady: {
     backgroundColor: '#e0edff',
-    padding: '0.3rem 0.6rem',
+    padding: '0.35rem 0.6rem',
     borderRadius: '999px',
     fontSize: '0.85rem',
     display: 'flex',
     alignItems: 'center',
-    gap: 6
+    gap: 6,
+    border: '1px solid #c7dbff'
   },
-  waveText: { color: '#2563eb', fontWeight: 600 },
+  waveText: { color: '#2563eb', fontWeight: 700 },
 
   metricsRow: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
     gap: '1rem',
-    marginBottom: '2rem'
+    marginBottom: '1.4rem'
   },
   metricCard: {
     backgroundColor: 'white',
     padding: '1rem',
     borderRadius: '12px',
-    boxShadow: '0 3px 6px rgba(0,0,0,0.05)',
+    boxShadow: '0 2px 6px rgba(15, 23, 42, 0.05)',
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    border: '1px solid #eef2f7'
   },
-  metricLeft: { display: 'flex', flexDirection: 'column', gap: '0.4rem' },
-  metricLabel: { fontSize: '0.9rem', fontWeight: 600, color: '#64748b' },
-  metricValue: { fontSize: '1.4rem', fontWeight: 700, color: '#0f172a' },
+  metricLeft: { display: 'flex', flexDirection: 'column', gap: '0.35rem' },
+  metricLabel: { fontSize: '0.9rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.7 },
+  metricValue: { fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', margin: 0 },
 
   tabsRow: {
     display: 'flex',
-    justifyContent: 'space-between',
+    gap: 8,
     marginBottom: '1rem',
     backgroundColor: '#f1f5f9',
-    borderRadius: '6px',
-    overflow: 'hidden'
+    borderRadius: '10px',
+    padding: 4
   },
   tabBtn: {
     flex: 1,
     padding: '0.8rem',
     border: 'none',
     background: 'transparent',
-    fontWeight: 600,
+    fontWeight: 800,
     cursor: 'pointer',
-    color: '#475569'
+    color: '#475569',
+    borderRadius: 8
   },
-  activeTab: { backgroundColor: 'white', color: '#0f172a' },
+  activeTab: { backgroundColor: 'white', color: '#0f172a', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
 
-  contactCard: {
+  card: {
     backgroundColor: 'white',
-    padding: '1.5rem',
+    padding: '1.2rem',
     borderRadius: '12px',
-    boxShadow: '0 2px 6px rgba(0,0,0,0.05)'
+    boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+    border: '1px solid #eef2f7'
   },
-  contactTitle: { fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.6rem' },
-  infoNote: { fontSize: '0.95rem', marginBottom: '1rem', color: '#555' },
-  infoRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: '2rem',
-    flexWrap: 'wrap'
-  },
-  infoHeader: { fontSize: '1rem', fontWeight: 600, marginBottom: '0.3rem' },
+  cardTitle: { fontSize: '1.1rem', fontWeight: 800, marginBottom: '0.8rem' },
+
+  detailList: { display: 'grid', gap: 10 },
+  detailRow: { display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 10px', borderRadius: 8, background: '#f8fafc', border: '1px solid #eef2f7' },
+  detailLabel: { color: '#64748b', fontWeight: 700 },
+  detailValue: { color: '#0f172a', fontWeight: 700 },
+
+  infoRow: { display: 'flex', justifyContent: 'space-between', gap: '2rem', flexWrap: 'wrap' },
+  infoHeader: { fontSize: '1rem', fontWeight: 800, marginBottom: '0.4rem' },
+  infoText: { margin: 0, lineHeight: 1.8, color: '#334155' },
+
+  emptyWrap: { border: '1px dashed #cbd5e1', borderRadius: 12, padding: 24, textAlign: 'center', color: '#0f172a', background: '#f8fafc' },
+  emptyIcon: { width: 56, height: 56, borderRadius: '50%', background: '#eef2ff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8, fontSize: 22 }
 };
 
 export default LoyeDashboard;
