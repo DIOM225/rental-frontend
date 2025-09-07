@@ -23,23 +23,27 @@ function loadCinetPayScript() {
 /**
  * PayRentButton (Seamless CinetPay)
  *
- * Props:
- * - unitCode        (string, required)
- * - period          ({ year:number, month:number }, required)
- * - amountXof       (number, required)  // must be integer & multiple of 5
- * - renterPhone10   (string, optional)  // "07xxxxxxxx" (10 digits, no +225)
- * - label           (string)
- * - channels        ('ALL'|'MOBILE_MONEY'|'CREDIT_CARD'|'WALLET') default 'WALLET'
- * - renterCountry   (string) default 'CI'
- * - onAccepted(resp), onRefused(resp), onClosed()
+ * Required props:
+ * - unitCode        (string)
+ * - period          ({ year:number, month:number })
+ * - amountXof       (integer, multiple of 5)
+ *
+ * Optional props:
+ * - renterPhone10   ("07xxxxxxxx" 10 digits, no +225)
+ * - renterName, renterSurname, renterEmail
+ * - channels        ('ALL'|'MOBILE_MONEY'|'CREDIT_CARD'|'WALLET')
+ * - renterCountry   (ISO-2) default 'CI'
  */
 export default function PayRentButton({
   unitCode,
   period,
   amountXof,
   renterPhone10,
+  renterName,
+  renterSurname,
+  renterEmail,
   label = "Payer le loyer",
-  channels = "WALLET",
+  channels = "MOBILE_MONEY,WALLET", // show Wave + Orange Money
   className = "",
   onAccepted,
   onRefused,
@@ -63,9 +67,10 @@ export default function PayRentButton({
     return amountXof;
   }, [amountXof]);
 
-  // 10-digit phone check
+  // 10-digit phone only (no +225 here; docs expect the raw number)
   const phone10 = useMemo(() => {
-    return renterPhone10 && /^\d{10}$/.test(String(renterPhone10)) ? String(renterPhone10) : undefined;
+    const v = String(renterPhone10 || "").trim();
+    return /^\d{10}$/.test(v) ? v : undefined;
   }, [renterPhone10]);
 
   // Body we POST to backend (no placeholders)
@@ -109,39 +114,39 @@ export default function PayRentButton({
       if (!data.transaction_id) throw new Error("transaction_id manquant (serveur)");
       if (!data.amount || data.amount % 5 !== 0) throw new Error("Montant invalide (serveur)");
       if (!data.currency) throw new Error("Devise manquante (serveur)");
-
       responseRef.current = data;
 
       // 2) Load SDK
       await loadCinetPayScript();
       if (!window.CinetPay) throw new Error("SDK CinetPay indisponible");
 
-      // 3) setConfig (use values from server only)
+      // 3) setConfig (server-supplied values)
       window.CinetPay.setConfig({
         apikey: data.apikey,
         site_id: data.site_id,
         mode: data.mode || "PRODUCTION",
-        notify_url: data.notify_url, // public HTTPS; server supplies it
+        notify_url: data.notify_url,
+        // close_after_response: true, // optional
       });
 
-      // 4) Build payload for getCheckout
+      // 4) Build payload for getCheckout — use **documented** keys only
       const payload = {
         transaction_id: data.transaction_id,
         amount: data.amount,
         currency: data.currency,
-        channels: data.channels || channels || "WALLET",
+        channels: data.channels || channels,  // "MOBILE_MONEY,WALLET" by default
         description: data.description || "Paiement de loyer",
         lang: data.lang || "fr",
+        return_url: data.return_url,          // optional but supported
 
-        // Return page (optional but supported by SDK)
-        return_url: data.return_url,
+        // -> these are the keys CinetPay actually reads for routing
+        customer_country: renterCountry || "CI",
+        customer_phone_number: phone10,       // 10 digits (no +225)
 
-        // Hints for correct wallet routing (prefer server values)
-        customer_country: data.customer_country || renterCountry || "CI",
-        phone_prefixe: data.phone_prefixe || "225",
-        customer_phone_number: data.customer_phone_number ?? phone10,
-        // If you want to force the phone that you provide, flip this to true.
-        lock_phone_number: data.lock_phone_number ?? false,
+        // (optional, helpful esp. for card flows)
+        customer_name: renterName,
+        customer_surname: renterSurname,
+        customer_email: renterEmail,
       };
 
       // Remove undefined keys to avoid SDK warnings
@@ -178,6 +183,9 @@ export default function PayRentButton({
     onClosed,
     onRefused,
     renterCountry,
+    renterEmail,
+    renterName,
+    renterSurname,
     phone10,
     safeAmount,
     safePeriod,
@@ -205,7 +213,6 @@ export default function PayRentButton({
         </div>
       ) : null}
 
-      {/* Dev-only: echo backend response */}
       {process.env.NODE_ENV !== "production" && responseRef.current ? (
         <details className="text-xs text-gray-500">
           <summary>Debug: init response</summary>
