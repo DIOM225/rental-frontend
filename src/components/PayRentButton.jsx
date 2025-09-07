@@ -26,7 +26,7 @@ function loadCinetPayScript() {
  * Props:
  * - unitCode        (string, required)
  * - period          ({ year:number, month:number }, required)
- * - amountXof       (number, required)  // must be a multiple of 5 per CinetPay rules
+ * - amountXof       (number, required)  // must be integer & multiple of 5
  * - renterPhone10   (string, optional)  // "07xxxxxxxx" (10 digits, no +225)
  * - label           (string)
  * - channels        ('ALL'|'MOBILE_MONEY'|'CREDIT_CARD'|'WALLET') default 'WALLET'
@@ -56,21 +56,27 @@ export default function PayRentButton({
     return { year: Number(period.year), month: Number(period.month) };
   }, [period]);
 
-  // Strict amount (no fallback, must be multiple of 5)
+  // Strict amount (must be integer & multiple of 5)
   const safeAmount = useMemo(() => {
     if (typeof amountXof !== "number" || !Number.isFinite(amountXof)) return null;
+    if (!Number.isInteger(amountXof)) return null;
     return amountXof;
   }, [amountXof]);
 
-  // Build the body we POST to your backend (no mock/fallback)
+  // 10-digit phone check
+  const phone10 = useMemo(() => {
+    return renterPhone10 && /^\d{10}$/.test(String(renterPhone10)) ? String(renterPhone10) : undefined;
+  }, [renterPhone10]);
+
+  // Body we POST to backend (no placeholders)
   const body = useMemo(() => {
     return {
       unitCode,
       period: safePeriod,
       amount: safeAmount,
-      renterPhone10: renterPhone10 && /^\d{10}$/.test(renterPhone10) ? renterPhone10 : undefined,
+      renterPhone10: phone10,
     };
-  }, [unitCode, safePeriod, safeAmount, renterPhone10]);
+  }, [unitCode, safePeriod, safeAmount, phone10]);
 
   const startCheckout = useCallback(async () => {
     setError("");
@@ -85,7 +91,7 @@ export default function PayRentButton({
       const API_BASE =
         process.env.REACT_APP_API_BASE_URL ||
         process.env.REACT_APP_API_URL ||
-        "";
+        (typeof window !== "undefined" ? window.location.origin : "");
 
       // 1) Ask backend to init (server ensures unique transaction_id, etc.)
       const res = await fetch(`${API_BASE}/api/loye/payments/cinetpay/init-seamless`, {
@@ -99,7 +105,7 @@ export default function PayRentButton({
         throw new Error(data?.error || "Échec d'initialisation du paiement");
       }
 
-      // Minimal doc checks on response
+      // Minimal checks on response
       if (!data.transaction_id) throw new Error("transaction_id manquant (serveur)");
       if (!data.amount || data.amount % 5 !== 0) throw new Error("Montant invalide (serveur)");
       if (!data.currency) throw new Error("Devise manquante (serveur)");
@@ -115,7 +121,7 @@ export default function PayRentButton({
         apikey: data.apikey,
         site_id: data.site_id,
         mode: data.mode || "PRODUCTION",
-        notify_url: data.notify_url, // must be public HTTPS; server supplies it
+        notify_url: data.notify_url, // public HTTPS; server supplies it
       });
 
       // 4) Build payload for getCheckout
@@ -127,16 +133,18 @@ export default function PayRentButton({
         description: data.description || "Paiement de loyer",
         lang: data.lang || "fr",
 
+        // Return page (optional but supported by SDK)
+        return_url: data.return_url,
+
         // Hints for correct wallet routing (prefer server values)
         customer_country: data.customer_country || renterCountry || "CI",
         phone_prefixe: data.phone_prefixe || "225",
-        customer_phone_number:
-          data.customer_phone_number ??
-          (renterPhone10 && /^\d{10}$/.test(renterPhone10) ? renterPhone10 : undefined),
+        customer_phone_number: data.customer_phone_number ?? phone10,
+        // If you want to force the phone that you provide, flip this to true.
         lock_phone_number: data.lock_phone_number ?? false,
       };
 
-      // Remove undefined keys
+      // Remove undefined keys to avoid SDK warnings
       Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
 
       // 5) Launch checkout
@@ -170,7 +178,7 @@ export default function PayRentButton({
     onClosed,
     onRefused,
     renterCountry,
-    renterPhone10,
+    phone10,
     safeAmount,
     safePeriod,
     unitCode,

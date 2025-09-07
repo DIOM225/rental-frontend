@@ -18,7 +18,7 @@ function guessPeriodFromDueDate(dueDateStr) {
   if (!dueDateStr || typeof dueDateStr !== 'string') {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() + 1 };
-    }
+  }
   const m = dueDateStr.trim().toLowerCase().match(/(\d{1,2})\s+([a-zéûôîàèç]+)\s+(\d{4})/i);
   if (!m) {
     const now = new Date();
@@ -51,15 +51,6 @@ const formatFCFA = (n) => {
 
 const capitalizeWords = (s) =>
   typeof s === 'string' ? s.replace(/\b\p{L}/gu, (c) => c.toUpperCase()) : s;
-
-// Try to normalize a CI phone to 10 digits (strip +225 etc.)
-function normalizePhoneCI(input) {
-  if (!input) return null;
-  const digits = String(input).replace(/\D/g, '');
-  // remove +225 / 00225 if present
-  const trimmed = digits.replace(/^(225|00225)/, '');
-  return /^\d{10}$/.test(trimmed) ? trimmed : null;
-}
 
 function normalizeApi(raw) {
   const out = {
@@ -132,21 +123,18 @@ function LoyeDashboard() {
     fetchData();
   }, []);
 
-  // fetch renter payment history (best effort; API may not exist yet)
+  // fetch renter payment history
   const fetchHistory = async (unitCode) => {
     if (!unitCode) return;
     try {
       setHistoryLoading(true);
       const token = localStorage.getItem('token');
-      // expected backend route (you can implement later):
-      // GET /api/loye/renter/payments?unitCode=XXXX
       const { data } = await axios.get(`/api/loye/renter/payments`, {
         params: { unitCode },
         headers: { Authorization: `Bearer ${token}` }
       });
       setHistory(Array.isArray(data?.payments) ? data.payments : []);
     } catch (e) {
-      // graceful fallback
       console.warn('No payments API yet or failed to load history.', e?.message || e);
       setHistory([]);
     } finally {
@@ -204,8 +192,14 @@ function LoyeDashboard() {
     }
   }, []);
 
-  // renter phone hint for CinetPay (10-digit CI)
-  const renterPhone10 = useMemo(() => normalizePhoneCI(unitData?.phone), [unitData?.phone]);
+  // derive a 10-digit CI phone for CinetPay hint (+225 stripped)
+  const renterPhone10 = useMemo(() => {
+    const raw = unitData?.phone || '';
+    const digits = String(raw).replace(/\D/g, '');
+    // remove leading country code if present
+    const trimmed = digits.replace(/^(225|00225)/, '');
+    return /^\d{10}$/.test(trimmed) ? trimmed : null;
+  }, [unitData?.phone]);
 
   // kick off history fetch when we know the code
   useEffect(() => {
@@ -238,7 +232,7 @@ function LoyeDashboard() {
   const safeUnitCode = storedUnitCode || unitData?.unitCode || null;
   const unitLabel = unitData?.unit || '';
 
-  // ✅ NEW: avoid repeating the code chip if already present next to the address/label
+  // avoid repeating the code chip if already present next to the address/label
   const showUnitChip = Boolean(safeUnitCode && !(unitLabel || '').includes(safeUnitCode));
 
   const dr = Number.isFinite(unitData?.daysRemaining) ? unitData.daysRemaining : null;
@@ -342,7 +336,7 @@ function LoyeDashboard() {
               amountXof={unitData?.rentAmount}
               label="Payer le loyer"
               disabled={payDisabled}
-              // ✅ Hints to route directly to Wave/Orange CI
+              // Hints to route directly to Wave/Orange CI
               channels="WALLET"
               renterCountry="CI"
               renterPhone10={renterPhone10 || undefined}
@@ -428,13 +422,34 @@ function LoyeDashboard() {
           ) : (
             <div style={{ display: 'grid', gap: 8 }}>
               {history.map((p) => (
-                <div key={p._id || p.transactionId} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, padding: '10px 12px', background: '#f8fafc', border: '1px solid #eef2f7', borderRadius: 10 }}>
+                <div
+                  key={p._id || p.transactionId}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr auto auto',
+                    gap: 8,
+                    padding: '10px 12px',
+                    background: '#f8fafc',
+                    border: '1px solid #eef2f7',
+                    borderRadius: 10
+                  }}
+                >
                   <div style={{ fontWeight: 700 }}>
                     {p.period?.month}/{p.period?.year} — {p.unitCode}
                     <div style={{ fontSize: 12, color: '#64748b' }}>{p.transactionId}</div>
                   </div>
-                  <div style={{ fontWeight: 800 }}>{formatFCFA(Number.isFinite(p.netAmount) && p.netAmount > 0 ? p.netAmount : p.amount)}</div>
-                  <div style={{ fontWeight: 800, color: p.status === 'ACCEPTED' ? '#065f46' : p.status === 'REFUSED' ? '#991b1b' : '#92400e' }}>
+                  <div style={{ fontWeight: 800 }}>
+                    {formatFCFA(Number.isFinite(p.netAmount) && p.netAmount > 0 ? p.netAmount : p.amount)}
+                  </div>
+                  <div
+                    style={{
+                      fontWeight: 800,
+                      color:
+                        p.status === 'ACCEPTED' ? '#065f46'
+                        : p.status === 'REFUSED' ? '#991b1b'
+                        : '#92400e'
+                    }}
+                  >
                     {p.status}
                   </div>
                 </div>
