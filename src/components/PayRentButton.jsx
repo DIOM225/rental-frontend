@@ -6,12 +6,14 @@ function loadCinetPayScript() {
   const SRC = "https://cdn.cinetpay.com/seamless/main.js";
   return new Promise((resolve, reject) => {
     if (typeof window !== "undefined" && window.CinetPay) return resolve(window.CinetPay);
+
     const existing = document.querySelector(`script[src="${SRC}"]`);
     if (existing) {
       existing.addEventListener("load", () => resolve(window.CinetPay));
       existing.addEventListener("error", () => reject(new Error("CinetPay script failed to load")));
       return;
     }
+
     const s = document.createElement("script");
     s.src = SRC;
     s.async = true;
@@ -31,9 +33,9 @@ function loadCinetPayScript() {
  *
  * OPTIONAL:
  * - renterPhone10  ("07xxxxxxxx" 10 digits, no +225)
- * - renterName     (full name in one string; we split server-side too)
+ * - renterName     (free string; server splits)
  * - renterEmail
- * - channels       ('ALL'|'MOBILE_MONEY'|'CREDIT_CARD'|'WALLET') default "MOBILE_MONEY,WALLET"
+ * - channels       (string) – default "MOBILE_MONEY,WALLET" but we’ll force 'ALL' for web when calling SDK
  * - renterCountry  (ISO-2) default 'CI'
  * - lockPhone      (boolean) default true
  * - onAccepted/onRefused/onClosed (callbacks)
@@ -74,7 +76,7 @@ export default function PayRentButton({
     return amountXof;
   }, [amountXof]);
 
-  // 10-digit phone only (no +225 here; docs expect the raw number)
+  // 10-digit phone only (no +225 here)
   const phone10 = useMemo(() => {
     const v = String(renterPhone10 || "").trim();
     return /^\d{10}$/.test(v) ? v : undefined;
@@ -87,9 +89,9 @@ export default function PayRentButton({
       period: safePeriod,
       amount: safeAmount,
       renterPhone10: phone10,
-      renterName: renterName || undefined,
-      renterEmail: renterEmail || undefined,
-      channels: channels || undefined,
+      renterName: (renterName || "").trim() || undefined,
+      renterEmail: (renterEmail || "").trim() || undefined,
+      channels: channels || undefined, // server normalizes to ALL anyway
     };
   }, [unitCode, safePeriod, safeAmount, phone10, renterName, renterEmail, channels]);
 
@@ -97,7 +99,7 @@ export default function PayRentButton({
     setError("");
     setLoading(true);
     try {
-      // Guard: required inputs present before hitting the server
+      // Guards
       if (!unitCode) throw new Error("unitCode manquant");
       if (!safePeriod) throw new Error("period.year et period.month sont requis");
       if (safeAmount == null) throw new Error("amountXof est requis");
@@ -108,7 +110,7 @@ export default function PayRentButton({
         process.env.REACT_APP_API_URL ||
         (typeof window !== "undefined" ? window.location.origin : "");
 
-      // 1) Ask backend to init
+      // 1) Init on backend
       const res = await fetch(`${API_BASE}/api/loye/payments/cinetpay/init-seamless`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -121,13 +123,12 @@ export default function PayRentButton({
       } catch {
         data = null;
       }
-
       if (!res.ok || !(data && data.ok)) {
         const msg = (data && (data.error || data.message)) || `HTTP ${res.status}`;
         throw new Error(msg);
       }
 
-      // Minimal checks on response
+      // Basic checks
       if (!data.transaction_id) throw new Error("transaction_id manquant (serveur)");
       if (!data.amount || data.amount % 5 !== 0) throw new Error("Montant invalide (serveur)");
       if (!data.currency) throw new Error("Devise manquante (serveur)");
@@ -137,64 +138,105 @@ export default function PayRentButton({
       await loadCinetPayScript();
       if (!window.CinetPay) throw new Error("SDK CinetPay indisponible");
 
-      // 3) setConfig (server-supplied values)
+      // 3) setConfig — only supported keys
       window.CinetPay.setConfig({
         apikey: data.apikey,
         site_id: data.site_id,
         mode: data.mode || "PRODUCTION",
-        notify_url: data.notify_url,
       });
 
-      // 4) Build payload for getCheckout — use documented keys only
-      const payload = {
+      // 4) Build payload for checkout — use backend response AS-IS
+      const checkoutPayload = {
         transaction_id: data.transaction_id,
         amount: data.amount,
         currency: data.currency,
-        channels: data.channels || channels,
         description: data.description || "Paiement de loyer",
+        channels: data.channels || "ALL", // safest for web
         lang: data.lang || "fr",
+        notify_url: data.notify_url,
         return_url: data.return_url,
 
         // Routing hints
-        customer_country: renterCountry || "CI",
-        phone_prefixe: "225",
-        customer_phone_number: phone10,
-        lock_phone_number: phone10 && lockPhone ? true : undefined,
+        customer_country: data.customer_country || (renterCountry || "CI"),
+        phone_prefixe: data.phone_prefixe || "225",
+        customer_phone_number: data.customer_phone_number ?? phone10,
+        lock_phone_number:
+          typeof data.lock_phone_number === "boolean"
+            ? data.lock_phone_number
+            : phone10 && lockPhone
+            ? true
+            : undefined,
 
-        // Optional customer details (also passed server-side for snapshots)
-        customer_name: data.customer_name,       // server may have set from renterName
-        customer_surname: data.customer_surname, // server may have set
+        // Optional customer fields (server may already have set them)
+        customer_name: data.customer_name,
+        customer_surname: data.customer_surname,
         customer_email: data.customer_email || renterEmail,
       };
 
-      // Remove undefined keys to avoid SDK warnings
-      Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
+      // Strip undefined
+      Object.keys(checkoutPayload).forEach(
+        (k) => checkoutPayload[k] === undefined && delete checkoutPayload[k]
+      );
 
-      // 5) Launch checkout
-      window.CinetPay.getCheckout(payload);
-
-      // 6) Listen for front-end status (authoritative is webhook + /v2/payment/check)
-      window.CinetPay.waitResponse((resp) => {
-        if (resp?.status === "ACCEPTED") onAccepted?.(resp);
-        else if (resp?.status === "REFUSED") onRefused?.(resp);
-      });
-
+      // 5) Attach listeners BEFORE getCheckout for better error visibility
       if (typeof window.CinetPay.onError === "function") {
-        window.CinetPay.onError((err) => {
-          console.error("CinetPay error:", err);
-          setError(err?.description || err?.message || "Erreur de paiement");
+        window.CinetPay.onError((evt) => {
+          console.error("CinetPay onError evt:", evt);
+          setError(
+            evt?.description ||
+              evt?.message ||
+              "An error occurred while processing the request"
+          );
+          onRefused?.(evt);
         });
       }
+
       if (typeof window.CinetPay.onClose === "function") {
-        window.CinetPay.onClose(() => onClosed?.());
+        window.CinetPay.onClose(() => {
+          onClosed?.();
+          setLoading(false);
+        });
       }
+
+      if (typeof window.CinetPay.onPaymentPending === "function") {
+        window.CinetPay.onPaymentPending((evt) => {
+          console.log("CinetPay pending:", evt);
+        });
+      }
+
+      if (typeof window.CinetPay.onPaymentSuccess === "function") {
+        window.CinetPay.onPaymentSuccess((evt) => {
+          console.log("CinetPay success:", evt);
+          onAccepted?.(evt);
+          setLoading(false);
+        });
+      }
+
+      // 6) Go!
+      await window.CinetPay.getCheckout(checkoutPayload);
     } catch (e) {
-      console.error(e);
-      setError(e.message || "Une erreur est survenue");
+      console.error("CinetPay error:", e?.response?.data || e.message || e);
+      setError(
+        e?.response?.data?.description ||
+          e?.response?.data?.message ||
+          e?.message ||
+          "Une erreur est survenue"
+      );
     } finally {
       setLoading(false);
     }
-  }, [body, channels, lockPhone, onAccepted, onClosed, onRefused, renterCountry, renterEmail, unitCode, safePeriod, safeAmount, phone10]);
+  }, [
+    unitCode,
+    safePeriod,
+    safeAmount,
+    renterCountry,
+    lockPhone,
+    renterEmail,
+    body,
+    onAccepted,
+    onRefused,
+    onClosed,
+  ]);
 
   return (
     <div className={`inline-flex flex-col gap-2 ${className}`}>
@@ -202,7 +244,9 @@ export default function PayRentButton({
         type="button"
         onClick={startCheckout}
         disabled={loading || !unitCode}
-        className={`px-4 py-2 rounded-2xl shadow text-white ${loading ? "opacity-60 cursor-not-allowed" : "hover:opacity-90"}`}
+        className={`px-4 py-2 rounded-2xl shadow text-white ${
+          loading ? "opacity-60 cursor-not-allowed" : "hover:opacity-90"
+        }`}
         style={{ background: "#0ea5e9" }}
         aria-busy={loading}
       >
