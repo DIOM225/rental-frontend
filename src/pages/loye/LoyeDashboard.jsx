@@ -8,41 +8,29 @@ import {
   FaMapMarkerAlt, FaMobileAlt
 } from 'react-icons/fa';
 
-// --- French month parsing for strings like "1 Août 2025" ---
-const FR_MONTHS = {
-  janvier: 1, février: 2, fevrier: 2, mars: 3, avril: 4, mai: 5, juin: 6,
-  juillet: 7, août: 8, aout: 8, septembre: 9, octobre: 10, novembre: 11, décembre: 12, decembre: 12
-};
+/* ----------------- helpers ----------------- */
 
-function guessPeriodFromDueDate(dueDateStr) {
-  if (!dueDateStr || typeof dueDateStr !== 'string') {
-    const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth() + 1 };
-  }
-  const m = dueDateStr.trim().toLowerCase().match(/(\d{1,2})\s+([a-zéûôîàèç]+)\s+(\d{4})/i);
-  if (!m) {
-    const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth() + 1 };
-  }
-  const monthName = m[2].normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const month = FR_MONTHS[monthName] || FR_MONTHS[m[2]];
-  const year = parseInt(m[3], 10);
-  if (!month || !year) {
-    const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth() + 1 };
-  }
-  return { year, month };
-}
-
-// ---------- helpers (no hooks) ----------
-const isBlank = (v) => v == null || (typeof v === 'string' && v.trim() === '');
-
+// Format dates -> "10 septembre 2025"
 const fmtDate = (v) => {
   if (!v) return '';
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return String(v);
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 };
+
+// 10th-of-month “period” helper
+function periodForDueDay10(today = new Date()) {
+  const y = today.getFullYear();
+  const m = today.getMonth() + 1; // 1..12
+  const day = today.getDate();
+  if (day > 10) {
+    const next = new Date(y, m, 1);
+    return { year: next.getFullYear(), month: next.getMonth() + 1 };
+  }
+  return { year: y, month: m };
+}
+
+const isBlank = (v) => v == null || (typeof v === 'string' && v.trim() === '');
 
 const formatFCFA = (n) => {
   if (!Number.isFinite(n)) return '';
@@ -52,6 +40,15 @@ const formatFCFA = (n) => {
 const capitalizeWords = (s) =>
   typeof s === 'string' ? s.replace(/\b\p{L}/gu, (c) => c.toUpperCase()) : s;
 
+// Normalize to a 10-digit CI number: strips +225/00225 and non-digits
+function normalizePhoneCI(input) {
+  if (!input) return null;
+  const digits = String(input).replace(/\D/g, '');
+  const trimmed = digits.replace(/^(225|00225)/, '');
+  return /^\d{10}$/.test(trimmed) ? trimmed : null;
+}
+
+// Normalize API payload into what UI expects
 function normalizeApi(raw) {
   const out = {
     name: raw?.name || raw?.renterName || raw?.user?.name,
@@ -79,16 +76,18 @@ function normalizeApi(raw) {
     mgmtPhone: raw?.mgmtPhone || raw?.manager?.phone,
     hours: raw?.hours || raw?.manager?.hours || raw?.officeHours,
     propertyName: raw?.propertyName,
-    propertyAddress: raw?.propertyAddress
+    propertyAddress: raw?.propertyAddress,
   };
   return out;
 }
+
+/* ----------------- component ----------------- */
 
 function LoyeDashboard() {
   const [unitData, setUnitData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('history'); // 'history' | 'details' | 'contact'
-  const [history, setHistory] = useState([]); // simple list of payments
+  const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
   const red = { color: '#dc2626', fontWeight: 600 };
@@ -149,38 +148,61 @@ function LoyeDashboard() {
 
     const css = `
 @keyframes skel { 0%{background-position:100% 0} 100%{background-position:0 0} }
-
-/* Mobile tweaks */
 @media (max-width: 640px) {
   .loye-container { padding: 1rem !important; }
   .loye-heading { font-size: 1.5rem !important; }
   .loye-header-sub { gap: 6px !important; }
   .loye-chip { font-size: 11px !important; padding: 2px 8px !important; }
-
   .loye-banner { padding: 0.75rem !important; }
   .loye-banner-inner { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
   .loye-banner-buttons { width: 100% !important; gap: 8px !important; }
   .loye-banner-buttons > * { flex: 1 1 auto !important; }
-
   .loye-metrics { grid-template-columns: 1fr !important; }
   .loye-metric-value { font-size: 1.2rem !important; }
-
   .loye-tabs { overflow-x: auto; white-space: nowrap; }
   .loye-tab { min-width: 140px; }
-
   .loye-card { padding: 1rem !important; }
   .loye-detail-row { flex-direction: column !important; align-items: flex-start !important; gap: 6px !important; }
 }
-
-/* Very small screens */
-@media (max-width: 380px) {
-  .loye-tab { min-width: 120px; }
-}
+@media (max-width: 380px) { .loye-tab { min-width: 120px; } }
 `;
     const style = document.createElement('style');
     style.id = 'loye-dashboard-styles';
     style.innerHTML = css;
     document.head.appendChild(style);
+  }, []);
+
+  // ✅ CinetPay modal patch: force the iframe to fill the screen on mobile (Safari/Android)
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (document.getElementById('cinetpay-modal-patch')) return;
+
+    const s = document.createElement('style');
+    s.id = 'cinetpay-modal-patch';
+    s.innerHTML = `
+      #cinetpay-checkout,
+      #cinetpay-checkout iframe,
+      .modal_cinetpay,
+      .CPmodal,
+      .cinetpay-modal,
+      .cinetpay-modal iframe {
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+        z-index: 2147483647 !important;
+        display: block !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+      }
+      .modal_cinetpay *,
+      #cinetpay-checkout * {
+        transform: none !important;
+      }
+    `;
+    document.head.appendChild(s);
   }, []);
 
   // read stored unit code ONCE
@@ -192,14 +214,11 @@ function LoyeDashboard() {
     }
   }, []);
 
-  // derive a 10-digit CI phone for CinetPay hint (+225 stripped)
-  const renterPhone10 = useMemo(() => {
-    const raw = unitData?.phone || '';
-    const digits = String(raw).replace(/\D/g, '');
-    // remove leading country code if present
-    const trimmed = digits.replace(/^(225|00225)/, '');
-    return /^\d{10}$/.test(trimmed) ? trimmed : null;
-  }, [unitData?.phone]);
+  // renter phone hint for CinetPay (10-digit CI)
+  const normalizedPhone = useMemo(
+    () => normalizePhoneCI(unitData?.phone),
+    [unitData?.phone]
+  );
 
   // kick off history fetch when we know the code
   useEffect(() => {
@@ -231,8 +250,6 @@ function LoyeDashboard() {
 
   const safeUnitCode = storedUnitCode || unitData?.unitCode || null;
   const unitLabel = unitData?.unit || '';
-
-  // avoid repeating the code chip if already present next to the address/label
   const showUnitChip = Boolean(safeUnitCode && !(unitLabel || '').includes(safeUnitCode));
 
   const dr = Number.isFinite(unitData?.daysRemaining) ? unitData.daysRemaining : null;
@@ -264,8 +281,6 @@ function LoyeDashboard() {
     else statusLine = `En retard de ${Math.abs(dr)} jours`;
   }
 
-  const payDisabled = !safeUnitCode || !Number.isFinite(unitData?.rentAmount);
-
   const field = (val, labelForFallback) =>
     (isBlank(val) && !Number.isFinite(val))
       ? <span style={red}>(à relier à la DB: {labelForFallback})</span>
@@ -282,7 +297,7 @@ function LoyeDashboard() {
     alert('Paiement refusé ❌');
   };
   const handleClosed = () => {
-    console.log('Checkout closed');
+    console.log('Checkout fermé');
     fetchHistory(safeUnitCode);
   };
 
@@ -328,18 +343,20 @@ function LoyeDashboard() {
 
           <div className="loye-banner-buttons" style={styles.bannerButtons}>
             <span style={styles.waveReady}>
-              <FaMobileAlt /> <span style={styles.waveText}>Wave prêt</span>
+              <FaMobileAlt /> <span style={styles.waveText}>Wallet prêt</span>
             </span>
+
+            {/* ✅ Product-ready, backend resolves IDs from unitCode */}
             <PayRentButton
               unitCode={safeUnitCode || undefined}
-              period={guessPeriodFromDueDate(unitData?.dueDate)}
+              period={periodForDueDay10()}
               amountXof={unitData?.rentAmount}
               label="Payer le loyer"
-              disabled={payDisabled}
-              // Hints to route directly to Wave/Orange CI
-              channels="WALLET"
+              channels="MOBILE_MONEY,WALLET"
               renterCountry="CI"
-              renterPhone10={renterPhone10 || undefined}
+              renterPhone10={normalizedPhone || undefined}
+              renterName={unitData?.name}
+              renterEmail={unitData?.email}
               onAccepted={handleAccepted}
               onRefused={handleRefused}
               onClosed={handleClosed}
@@ -422,34 +439,13 @@ function LoyeDashboard() {
           ) : (
             <div style={{ display: 'grid', gap: 8 }}>
               {history.map((p) => (
-                <div
-                  key={p._id || p.transactionId}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr auto auto',
-                    gap: 8,
-                    padding: '10px 12px',
-                    background: '#f8fafc',
-                    border: '1px solid #eef2f7',
-                    borderRadius: 10
-                  }}
-                >
+                <div key={p._id || p.transactionId} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, padding: '10px 12px', background: '#f8fafc', border: '1px solid #eef2f7', borderRadius: 10 }}>
                   <div style={{ fontWeight: 700 }}>
                     {p.period?.month}/{p.period?.year} — {p.unitCode}
                     <div style={{ fontSize: 12, color: '#64748b' }}>{p.transactionId}</div>
                   </div>
-                  <div style={{ fontWeight: 800 }}>
-                    {formatFCFA(Number.isFinite(p.netAmount) && p.netAmount > 0 ? p.netAmount : p.amount)}
-                  </div>
-                  <div
-                    style={{
-                      fontWeight: 800,
-                      color:
-                        p.status === 'ACCEPTED' ? '#065f46'
-                        : p.status === 'REFUSED' ? '#991b1b'
-                        : '#92400e'
-                    }}
-                  >
+                  <div style={{ fontWeight: 800 }}>{formatFCFA(Number.isFinite(p.netAmount) && p.netAmount > 0 ? p.netAmount : p.amount)}</div>
+                  <div style={{ fontWeight: 800, color: p.status === 'ACCEPTED' ? '#065f46' : p.status === 'REFUSED' ? '#991b1b' : '#92400e' }}>
                     {p.status}
                   </div>
                 </div>

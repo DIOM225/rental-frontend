@@ -1,3 +1,4 @@
+// 📄 client/src/components/PayRentButton.jsx
 import React, { useCallback, useMemo, useRef, useState } from "react";
 
 /** Load the CinetPay Seamless SDK once */
@@ -23,32 +24,38 @@ function loadCinetPayScript() {
 /**
  * PayRentButton (Seamless CinetPay)
  *
- * Required props:
- * - unitCode        (string)
- * - period          ({ year:number, month:number })
- * - amountXof       (integer, multiple of 5)
+ * REQUIRED props:
+ * - unitCode       (string)
+ * - period         ({ year:number, month:number })
+ * - amountXof      (integer, multiple of 5)
  *
- * Optional props:
- * - renterPhone10   ("07xxxxxxxx" 10 digits, no +225)
- * - renterName, renterSurname, renterEmail
- * - channels        ('ALL'|'MOBILE_MONEY'|'CREDIT_CARD'|'WALLET')
- * - renterCountry   (ISO-2) default 'CI'
+ * OPTIONAL:
+ * - renterPhone10  ("07xxxxxxxx" 10 digits, no +225)
+ * - renterName     (full name in one string; we split server-side too)
+ * - renterEmail
+ * - channels       ('ALL'|'MOBILE_MONEY'|'CREDIT_CARD'|'WALLET') default "MOBILE_MONEY,WALLET"
+ * - renterCountry  (ISO-2) default 'CI'
+ * - lockPhone      (boolean) default true
+ * - onAccepted/onRefused/onClosed (callbacks)
  */
 export default function PayRentButton({
   unitCode,
   period,
   amountXof,
+
+  // optional
   renterPhone10,
   renterName,
-  renterSurname,
   renterEmail,
+
   label = "Payer le loyer",
-  channels = "MOBILE_MONEY,WALLET", // show Wave + Orange Money
+  channels = "MOBILE_MONEY,WALLET",
   className = "",
   onAccepted,
   onRefused,
   onClosed,
   renterCountry = "CI",
+  lockPhone = true,
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -73,15 +80,18 @@ export default function PayRentButton({
     return /^\d{10}$/.test(v) ? v : undefined;
   }, [renterPhone10]);
 
-  // Body we POST to backend (no placeholders)
+  // Body we POST to backend
   const body = useMemo(() => {
     return {
       unitCode,
       period: safePeriod,
       amount: safeAmount,
       renterPhone10: phone10,
+      renterName: renterName || undefined,
+      renterEmail: renterEmail || undefined,
+      channels: channels || undefined,
     };
-  }, [unitCode, safePeriod, safeAmount, phone10]);
+  }, [unitCode, safePeriod, safeAmount, phone10, renterName, renterEmail, channels]);
 
   const startCheckout = useCallback(async () => {
     setError("");
@@ -98,16 +108,23 @@ export default function PayRentButton({
         process.env.REACT_APP_API_URL ||
         (typeof window !== "undefined" ? window.location.origin : "");
 
-      // 1) Ask backend to init (server ensures unique transaction_id, etc.)
+      // 1) Ask backend to init
       const res = await fetch(`${API_BASE}/api/loye/payments/cinetpay/init-seamless`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || "Échec d'initialisation du paiement");
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok || !(data && data.ok)) {
+        const msg = (data && (data.error || data.message)) || `HTTP ${res.status}`;
+        throw new Error(msg);
       }
 
       // Minimal checks on response
@@ -126,27 +143,28 @@ export default function PayRentButton({
         site_id: data.site_id,
         mode: data.mode || "PRODUCTION",
         notify_url: data.notify_url,
-        // close_after_response: true, // optional
       });
 
-      // 4) Build payload for getCheckout — use **documented** keys only
+      // 4) Build payload for getCheckout — use documented keys only
       const payload = {
         transaction_id: data.transaction_id,
         amount: data.amount,
         currency: data.currency,
-        channels: data.channels || channels,  // "MOBILE_MONEY,WALLET" by default
+        channels: data.channels || channels,
         description: data.description || "Paiement de loyer",
         lang: data.lang || "fr",
-        return_url: data.return_url,          // optional but supported
+        return_url: data.return_url,
 
-        // -> these are the keys CinetPay actually reads for routing
+        // Routing hints
         customer_country: renterCountry || "CI",
-        customer_phone_number: phone10,       // 10 digits (no +225)
+        phone_prefixe: "225",
+        customer_phone_number: phone10,
+        lock_phone_number: phone10 && lockPhone ? true : undefined,
 
-        // (optional, helpful esp. for card flows)
-        customer_name: renterName,
-        customer_surname: renterSurname,
-        customer_email: renterEmail,
+        // Optional customer details (also passed server-side for snapshots)
+        customer_name: data.customer_name,       // server may have set from renterName
+        customer_surname: data.customer_surname, // server may have set
+        customer_email: data.customer_email || renterEmail,
       };
 
       // Remove undefined keys to avoid SDK warnings
@@ -176,21 +194,7 @@ export default function PayRentButton({
     } finally {
       setLoading(false);
     }
-  }, [
-    body,
-    channels,
-    onAccepted,
-    onClosed,
-    onRefused,
-    renterCountry,
-    renterEmail,
-    renterName,
-    renterSurname,
-    phone10,
-    safeAmount,
-    safePeriod,
-    unitCode,
-  ]);
+  }, [body, channels, lockPhone, onAccepted, onClosed, onRefused, renterCountry, renterEmail, unitCode, safePeriod, safeAmount, phone10]);
 
   return (
     <div className={`inline-flex flex-col gap-2 ${className}`}>
@@ -198,9 +202,7 @@ export default function PayRentButton({
         type="button"
         onClick={startCheckout}
         disabled={loading || !unitCode}
-        className={`px-4 py-2 rounded-2xl shadow text-white ${
-          loading ? "opacity-60 cursor-not-allowed" : "hover:opacity-90"
-        }`}
+        className={`px-4 py-2 rounded-2xl shadow text-white ${loading ? "opacity-60 cursor-not-allowed" : "hover:opacity-90"}`}
         style={{ background: "#0ea5e9" }}
         aria-busy={loading}
       >
