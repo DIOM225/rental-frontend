@@ -1,5 +1,5 @@
 // 📄 client/src/components/PayRentButton.jsx
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /** Load the CinetPay Seamless SDK once */
 function loadCinetPayScript() {
@@ -24,21 +24,7 @@ function loadCinetPayScript() {
 }
 
 /**
- * PayRentButton (Seamless CinetPay)
- *
- * REQUIRED props:
- * - unitCode       (string)
- * - period         ({ year:number, month:number })
- * - amountXof      (integer, multiple of 5)
- *
- * OPTIONAL:
- * - renterPhone10  ("07xxxxxxxx" 10 digits, no +225)
- * - renterName     (free string; server splits)
- * - renterEmail
- * - channels       (string) – default "MOBILE_MONEY,WALLET" but we’ll force 'ALL' for web when calling SDK
- * - renterCountry  (ISO-2) default 'CI'
- * - lockPhone      (boolean) default true
- * - onAccepted/onRefused/onClosed (callbacks)
+ * PayRentButton (Seamless CinetPay) — optimized for mobile
  */
 export default function PayRentButton({
   unitCode,
@@ -51,7 +37,6 @@ export default function PayRentButton({
   renterEmail,
 
   label = "Payer le loyer",
-  channels = "MOBILE_MONEY,WALLET",
   className = "",
   onAccepted,
   onRefused,
@@ -62,21 +47,60 @@ export default function PayRentButton({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const responseRef = useRef(null);
+  const initCacheRef = useRef(null); // { stamp:number, data:object }
 
-  // Strict period (no fallback)
+  // Inject fullscreen modal CSS patch (mobile Safari/Android)
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (document.getElementById("cinetpay-modal-patch")) return;
+
+    const s = document.createElement("style");
+    s.id = "cinetpay-modal-patch";
+    s.innerHTML = `
+      #cinetpay-checkout,
+      #cinetpay-checkout iframe,
+      .modal_cinetpay,
+      .CPmodal,
+      .cinetpay-modal,
+      .cinetpay-modal iframe {
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+        z-index: 2147483647 !important;
+        display: block !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+      }
+      .modal_cinetpay *,
+      #cinetpay-checkout * {
+        transform: none !important;
+      }
+    `;
+    document.head.appendChild(s);
+  }, []);
+
+  // Preload SDK ASAP so it’s ready by the time user taps
+  useEffect(() => {
+    loadCinetPayScript().catch(() => {});
+  }, []);
+
+  // Strict period
   const safePeriod = useMemo(() => {
     if (!period || !Number(period?.year) || !Number(period?.month)) return null;
     return { year: Number(period.year), month: Number(period.month) };
   }, [period]);
 
-  // Strict amount (must be integer & multiple of 5)
+  // Strict amount
   const safeAmount = useMemo(() => {
     if (typeof amountXof !== "number" || !Number.isFinite(amountXof)) return null;
     if (!Number.isInteger(amountXof)) return null;
     return amountXof;
   }, [amountXof]);
 
-  // 10-digit phone only (no +225 here)
+  // 10-digit phone only (no +225)
   const phone10 = useMemo(() => {
     const v = String(renterPhone10 || "").trim();
     return /^\d{10}$/.test(v) ? v : undefined;
@@ -91,9 +115,48 @@ export default function PayRentButton({
       renterPhone10: phone10,
       renterName: (renterName || "").trim() || undefined,
       renterEmail: (renterEmail || "").trim() || undefined,
-      channels: channels || undefined, // server normalizes to ALL anyway
+      channels: "ALL", // ✅ force all channels so Wave/Mobile Money show on web+mobile
     };
-  }, [unitCode, safePeriod, safeAmount, phone10, renterName, renterEmail, channels]);
+  }, [unitCode, safePeriod, safeAmount, phone10, renterName, renterEmail]);
+
+  // 🔹 Pre-initialize payment in background so click -> immediate getCheckout (keeps user gesture)
+  useEffect(() => {
+    async function preInit() {
+      try {
+        setError("");
+        if (!unitCode || !safePeriod || safeAmount == null || safeAmount % 5 !== 0) return;
+        const API_BASE =
+          process.env.REACT_APP_API_BASE_URL ||
+          process.env.REACT_APP_API_URL ||
+          (typeof window !== "undefined" ? window.location.origin : "");
+
+        const res = await fetch(`${API_BASE}/api/loye/payments/cinetpay/init-seamless`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !(data && data.ok)) return;
+        if (!data.transaction_id || !data.amount || !data.currency) return;
+
+        initCacheRef.current = { stamp: Date.now(), data };
+      } catch {
+        // ignore background errors; we’ll retry on click
+      }
+    }
+
+    preInit();
+  }, [unitCode, safePeriod, safeAmount, body]);
+
+  // Helper to get cached-or-fresh init (returns null if not ready)
+  const getCachedInit = useCallback(() => {
+    const cached = initCacheRef.current;
+    if (cached && Date.now() - cached.stamp < 3 * 60 * 1000) {
+      return cached.data;
+    }
+    return null;
+  }, []);
 
   const startCheckout = useCallback(async () => {
     setError("");
@@ -105,58 +168,55 @@ export default function PayRentButton({
       if (safeAmount == null) throw new Error("amountXof est requis");
       if (safeAmount % 5 !== 0) throw new Error("Le montant doit être un multiple de 5");
 
-      const API_BASE =
-        process.env.REACT_APP_API_BASE_URL ||
-        process.env.REACT_APP_API_URL ||
-        (typeof window !== "undefined" ? window.location.origin : "");
+      // ✅ MUST: have init payload ready BEFORE calling getCheckout (mobile gesture)
+      let data = getCachedInit();
+      if (!data) {
+        // Not ready yet — fetch now (will still work on desktop; might be blocked on mobile)
+        const API_BASE =
+          process.env.REACT_APP_API_BASE_URL ||
+          process.env.REACT_APP_API_URL ||
+          (typeof window !== "undefined" ? window.location.origin : "");
 
-      // 1) Init on backend
-      const res = await fetch(`${API_BASE}/api/loye/payments/cinetpay/init-seamless`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      let data;
-      try {
+        const res = await fetch(`${API_BASE}/api/loye/payments/cinetpay/init-seamless`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
         data = await res.json();
-      } catch {
-        data = null;
-      }
-      if (!res.ok || !(data && data.ok)) {
-        const msg = (data && (data.error || data.message)) || `HTTP ${res.status}`;
-        throw new Error(msg);
+        if (!res.ok || !(data && data.ok)) {
+          const msg = (data && (data.error || data.message)) || `HTTP ${res.status}`;
+          throw new Error(msg);
+        }
+        initCacheRef.current = { stamp: Date.now(), data };
       }
 
-      // Basic checks
       if (!data.transaction_id) throw new Error("transaction_id manquant (serveur)");
       if (!data.amount || data.amount % 5 !== 0) throw new Error("Montant invalide (serveur)");
       if (!data.currency) throw new Error("Devise manquante (serveur)");
       responseRef.current = data;
 
-      // 2) Load SDK
+      // Ensure SDK is ready (already preloaded)
       await loadCinetPayScript();
       if (!window.CinetPay) throw new Error("SDK CinetPay indisponible");
 
-      // 3) setConfig — only supported keys
+      // Configure
       window.CinetPay.setConfig({
         apikey: data.apikey,
         site_id: data.site_id,
         mode: data.mode || "PRODUCTION",
       });
 
-      // 4) Build payload for checkout — use backend response AS-IS
+      // Build checkout payload — force ALL channels for best routing (Wave, MoMo, Wallet)
       const checkoutPayload = {
         transaction_id: data.transaction_id,
         amount: data.amount,
         currency: data.currency,
         description: data.description || "Paiement de loyer",
-        channels: data.channels || "ALL", // safest for web
+        channels: "ALL",
         lang: data.lang || "fr",
         notify_url: data.notify_url,
         return_url: data.return_url,
 
-        // Routing hints
         customer_country: data.customer_country || (renterCountry || "CI"),
         phone_prefixe: data.phone_prefixe || "225",
         customer_phone_number: data.customer_phone_number ?? phone10,
@@ -167,18 +227,16 @@ export default function PayRentButton({
             ? true
             : undefined,
 
-        // Optional customer fields (server may already have set them)
         customer_name: data.customer_name,
         customer_surname: data.customer_surname,
         customer_email: data.customer_email || renterEmail,
       };
 
-      // Strip undefined
       Object.keys(checkoutPayload).forEach(
         (k) => checkoutPayload[k] === undefined && delete checkoutPayload[k]
       );
 
-      // 5) Attach listeners BEFORE getCheckout for better error visibility
+      // Attach listeners BEFORE getCheckout
       if (typeof window.CinetPay.onError === "function") {
         window.CinetPay.onError((evt) => {
           console.error("CinetPay onError evt:", evt);
@@ -212,8 +270,8 @@ export default function PayRentButton({
         });
       }
 
-      // 6) Go!
-      await window.CinetPay.getCheckout(checkoutPayload);
+      // 🚀 Launch checkout immediately (user gesture preserved on mobile)
+      window.CinetPay.getCheckout(checkoutPayload);
     } catch (e) {
       console.error("CinetPay error:", e?.response?.data || e.message || e);
       setError(
@@ -236,6 +294,8 @@ export default function PayRentButton({
     onAccepted,
     onRefused,
     onClosed,
+    phone10,
+    getCachedInit,
   ]);
 
   return (
