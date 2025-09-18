@@ -25,12 +25,10 @@ function loadCinetPayScript() {
   });
 }
 
-const isMobile = () =>
-  typeof navigator !== "undefined" &&
-  /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
 /**
  * PayRentButton (Seamless CinetPay) — wallet/mobile compliant
+ * - channels: ALWAYS "ALL" (as requested)
+ * - never sends phone/lock to SDK (wallet collects inside modal)
  */
 export default function PayRentButton({
   unitCode,
@@ -48,7 +46,7 @@ export default function PayRentButton({
   onRefused,
   onClosed,
   renterCountry = "CI",
-  // lockPhone is ignored for the SDK payload (kept for future use/UX)
+  // kept for future UX; not used in SDK payload
   lockPhone = true,
 }) {
   const [loading, setLoading] = useState(false);
@@ -117,10 +115,10 @@ export default function PayRentButton({
       unitCode,
       period: safePeriod,
       amount: safeAmount,
-      renterPhone10: phone10, // kept server-side only for audit/snapshot; not sent to SDK
+      renterPhone10: phone10, // audit only; backend does NOT forward to SDK
       renterName: (renterName || "").trim() || undefined,
       renterEmail: (renterEmail || "").trim() || undefined,
-      channels: "ALL", // server keeps/normalizes; we still force WALLET on mobile at SDK call
+      channels: "ALL", // keep ALL end-to-end
     };
   }, [unitCode, safePeriod, safeAmount, phone10, renterName, renterEmail]);
 
@@ -210,14 +208,13 @@ export default function PayRentButton({
         mode: data.mode || "PRODUCTION",
       });
 
-      // Build checkout payload — device-aware channels; NO phone/lock fields (docs-compliant)
-      const mobile = isMobile();
+      // Build checkout payload — ALWAYS channels: "ALL"; NO phone/lock fields
       const checkoutPayload = {
         transaction_id: data.transaction_id,
         amount: data.amount,
         currency: data.currency,
         description: data.description || "Paiement de loyer",
-        channels: mobile ? "WALLET" : (data.channels || "ALL"),
+        channels: data.channels || "ALL", // 👈 force ALL
         lang: data.lang || "fr",
         notify_url: data.notify_url,
         return_url: data.return_url,
@@ -276,9 +273,6 @@ export default function PayRentButton({
 
       // 🚀 Launch checkout immediately (user gesture preserved on mobile)
       window.CinetPay.getCheckout(checkoutPayload);
-
-      // (Optional) Watchdog: if modal not visible after ~2s on mobile, you can open hosted fallback here.
-      // See prior message if you want me to wire that up too.
     } catch (e) {
       console.error("CinetPay error:", e?.response?.data || e.message || e);
       setError(
