@@ -9,8 +9,10 @@ function loadCinetPayScript() {
 
     const existing = document.querySelector(`script[src="${SRC}"]`);
     if (existing) {
-      existing.addEventListener("load", () => resolve(window.CinetPay));
-      existing.addEventListener("error", () => reject(new Error("CinetPay script failed to load")));
+      const onLoad = () => resolve(window.CinetPay);
+      const onErr  = () => reject(new Error("CinetPay script failed to load"));
+      existing.addEventListener("load", onLoad, { once: true });
+      existing.addEventListener("error", onErr, { once: true });
       return;
     }
 
@@ -23,15 +25,19 @@ function loadCinetPayScript() {
   });
 }
 
+const isMobile = () =>
+  typeof navigator !== "undefined" &&
+  /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
 /**
- * PayRentButton (Seamless CinetPay) — optimized for mobile
+ * PayRentButton (Seamless CinetPay) — wallet/mobile compliant
  */
 export default function PayRentButton({
   unitCode,
   period,
   amountXof,
 
-  // optional
+  // optional (we will NOT send phone to SDK; CinetPay UI collects it)
   renterPhone10,
   renterName,
   renterEmail,
@@ -42,6 +48,7 @@ export default function PayRentButton({
   onRefused,
   onClosed,
   renterCountry = "CI",
+  // lockPhone is ignored for the SDK payload (kept for future use/UX)
   lockPhone = true,
 }) {
   const [loading, setLoading] = useState(false);
@@ -49,7 +56,7 @@ export default function PayRentButton({
   const responseRef = useRef(null);
   const initCacheRef = useRef(null); // { stamp:number, data:object }
 
-  // Inject fullscreen modal CSS patch (mobile Safari/Android)
+  // Inject fullscreen modal CSS patch (Safari/Android); no aggressive transform resets
   useEffect(() => {
     if (typeof document === "undefined") return;
     if (document.getElementById("cinetpay-modal-patch")) return;
@@ -57,6 +64,7 @@ export default function PayRentButton({
     const s = document.createElement("style");
     s.id = "cinetpay-modal-patch";
     s.innerHTML = `
+      html, body { height: 100% !important; }
       #cinetpay-checkout,
       #cinetpay-checkout iframe,
       .modal_cinetpay,
@@ -73,10 +81,7 @@ export default function PayRentButton({
         display: block !important;
         opacity: 1 !important;
         visibility: visible !important;
-      }
-      .modal_cinetpay *,
-      #cinetpay-checkout * {
-        transform: none !important;
+        pointer-events: auto !important;
       }
     `;
     document.head.appendChild(s);
@@ -100,31 +105,32 @@ export default function PayRentButton({
     return amountXof;
   }, [amountXof]);
 
-  // 10-digit phone only (no +225)
+  // 10-digit phone only (no +225) — we DO NOT send this to CinetPay; UI collects it.
   const phone10 = useMemo(() => {
     const v = String(renterPhone10 || "").trim();
     return /^\d{10}$/.test(v) ? v : undefined;
   }, [renterPhone10]);
 
-  // Body we POST to backend
+  // Body we POST to backend (server returns compliant payload for SDK)
   const body = useMemo(() => {
     return {
       unitCode,
       period: safePeriod,
       amount: safeAmount,
-      renterPhone10: phone10,
+      renterPhone10: phone10, // kept server-side only for audit/snapshot; not sent to SDK
       renterName: (renterName || "").trim() || undefined,
       renterEmail: (renterEmail || "").trim() || undefined,
-      channels: "ALL", // ✅ force all channels so Wave/Mobile Money show on web+mobile
+      channels: "ALL", // server keeps/normalizes; we still force WALLET on mobile at SDK call
     };
   }, [unitCode, safePeriod, safeAmount, phone10, renterName, renterEmail]);
 
-  // 🔹 Pre-initialize payment in background so click -> immediate getCheckout (keeps user gesture)
+  // Pre-initialize payment so click -> immediate getCheckout (preserve gesture)
   useEffect(() => {
     async function preInit() {
       try {
         setError("");
         if (!unitCode || !safePeriod || safeAmount == null || safeAmount % 5 !== 0) return;
+
         const API_BASE =
           process.env.REACT_APP_API_BASE_URL ||
           process.env.REACT_APP_API_URL ||
@@ -145,7 +151,6 @@ export default function PayRentButton({
         // ignore background errors; we’ll retry on click
       }
     }
-
     preInit();
   }, [unitCode, safePeriod, safeAmount, body]);
 
@@ -168,10 +173,9 @@ export default function PayRentButton({
       if (safeAmount == null) throw new Error("amountXof est requis");
       if (safeAmount % 5 !== 0) throw new Error("Le montant doit être un multiple de 5");
 
-      // ✅ MUST: have init payload ready BEFORE calling getCheckout (mobile gesture)
+      // Need init payload BEFORE getCheckout (mobile gesture)
       let data = getCachedInit();
       if (!data) {
-        // Not ready yet — fetch now (will still work on desktop; might be blocked on mobile)
         const API_BASE =
           process.env.REACT_APP_API_BASE_URL ||
           process.env.REACT_APP_API_URL ||
@@ -206,32 +210,32 @@ export default function PayRentButton({
         mode: data.mode || "PRODUCTION",
       });
 
-      // Build checkout payload — force ALL channels for best routing (Wave, MoMo, Wallet)
+      // Build checkout payload — device-aware channels; NO phone/lock fields (docs-compliant)
+      const mobile = isMobile();
       const checkoutPayload = {
         transaction_id: data.transaction_id,
         amount: data.amount,
         currency: data.currency,
         description: data.description || "Paiement de loyer",
-        channels: "ALL",
+        channels: mobile ? "WALLET" : (data.channels || "ALL"),
         lang: data.lang || "fr",
         notify_url: data.notify_url,
         return_url: data.return_url,
 
         customer_country: data.customer_country || (renterCountry || "CI"),
         phone_prefixe: data.phone_prefixe || "225",
-        customer_phone_number: data.customer_phone_number ?? phone10,
-        lock_phone_number:
-          typeof data.lock_phone_number === "boolean"
-            ? data.lock_phone_number
-            : phone10 && lockPhone
-            ? true
-            : undefined,
 
+        // ❌ Do NOT pass phone or lock flags — Wallet/MoMo collect phone in the widget
+        // customer_phone_number: (omitted)
+        // lock_phone_number: (omitted)
+
+        // Optional customer fields — fine for CARD; safe to include when present
         customer_name: data.customer_name,
         customer_surname: data.customer_surname,
         customer_email: data.customer_email || renterEmail,
       };
 
+      // Strip undefined
       Object.keys(checkoutPayload).forEach(
         (k) => checkoutPayload[k] === undefined && delete checkoutPayload[k]
       );
@@ -242,8 +246,8 @@ export default function PayRentButton({
           console.error("CinetPay onError evt:", evt);
           setError(
             evt?.description ||
-              evt?.message ||
-              "An error occurred while processing the request"
+            evt?.message ||
+            "Une erreur est survenue pendant le paiement"
           );
           onRefused?.(evt);
         });
@@ -272,6 +276,9 @@ export default function PayRentButton({
 
       // 🚀 Launch checkout immediately (user gesture preserved on mobile)
       window.CinetPay.getCheckout(checkoutPayload);
+
+      // (Optional) Watchdog: if modal not visible after ~2s on mobile, you can open hosted fallback here.
+      // See prior message if you want me to wire that up too.
     } catch (e) {
       console.error("CinetPay error:", e?.response?.data || e.message || e);
       setError(
@@ -288,13 +295,11 @@ export default function PayRentButton({
     safePeriod,
     safeAmount,
     renterCountry,
-    lockPhone,
     renterEmail,
     body,
     onAccepted,
     onRefused,
     onClosed,
-    phone10,
     getCachedInit,
   ]);
 
