@@ -35,7 +35,7 @@ function Navbar() {
           <Link to="/profile" style={styles.link} onClick={() => setIsMobileMenuOpen(false)}>Profil</Link>
 
           {/* 🔹 Loye appears only after login */}
-          <Link to="/loyer" style={styles.link} onClick={() => setIsMobileMenuOpen(false)}>Loye</Link>
+          <Link to="/loye" style={styles.link} onClick={() => setIsMobileMenuOpen(false)}>Loyer</Link>
 
           {user?.role === 'admin' && (
             <Link to="/admin/dashboard" style={styles.link} onClick={() => setIsMobileMenuOpen(false)}>Admin</Link>
