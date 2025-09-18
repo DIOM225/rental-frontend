@@ -25,17 +25,97 @@ function loadCinetPayScript() {
   });
 }
 
+/** Strong, mobile-first patch to make the CinetPay modal/iframe fully visible */
+function injectCinetPayModalPatch() {
+  if (typeof document === "undefined") return;
+  const id = "cinetpay-modal-patch-strong";
+  if (document.getElementById(id)) return;
+
+  const style = document.createElement("style");
+  style.id = id;
+  style.textContent = `
+    html, body { height: 100% !important; overflow: hidden !important; }
+    /* Container(s) CinetPay uses */
+    #cinetpay-checkout,
+    .cinetpay-modal,
+    .CPmodal,
+    .modal_cinetpay {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      z-index: 2147483647 !important;
+      display: block !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      pointer-events: auto !important;
+      transform: none !important;
+    }
+    /* The iframe itself must fill the screen and be visible */
+    #cinetpay-checkout iframe,
+    .cinetpay-modal iframe,
+    .CPmodal iframe,
+    .modal_cinetpay iframe {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      min-width: 100vw !important;
+      min-height: 100vh !important;
+      max-width: 100vw !important;
+      max-height: 100vh !important;
+      display: block !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      pointer-events: auto !important;
+      transform: none !important;
+    }
+    /* Some versions animate/scale inner wrappers; cancel that so content shows */
+    #cinetpay-checkout *, 
+    .cinetpay-modal *, 
+    .CPmodal *, 
+    .modal_cinetpay * {
+      transform: none !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+/** Re-assert patch a moment after the modal mounts (helps iOS Safari) */
+function nudgeModalVisibility() {
+  if (typeof document === "undefined") return;
+  // Re-apply styles quickly a few times in case their styles override late
+  let ticks = 0;
+  const maxTicks = 6; // ~1.2s total
+  const interval = setInterval(() => {
+    ticks += 1;
+    injectCinetPayModalPatch();
+    const frame =
+      document.querySelector("#cinetpay-checkout iframe") ||
+      document.querySelector(".cinetpay-modal iframe") ||
+      document.querySelector(".CPmodal iframe") ||
+      document.querySelector(".modal_cinetpay iframe");
+
+    if (frame && frame.offsetWidth > 0 && frame.offsetHeight > 0) {
+      clearInterval(interval);
+    }
+    if (ticks >= maxTicks) clearInterval(interval);
+  }, 200);
+}
+
 /**
  * PayRentButton (Seamless CinetPay) — wallet/mobile compliant
- * - channels: ALWAYS "ALL" (as requested)
- * - never sends phone/lock to SDK (wallet collects inside modal)
  */
 export default function PayRentButton({
   unitCode,
   period,
   amountXof,
 
-  // optional (we will NOT send phone to SDK; CinetPay UI collects it)
+  // optional (we do NOT send phone to SDK; CinetPay UI collects it)
   renterPhone10,
   renterName,
   renterEmail,
@@ -46,7 +126,7 @@ export default function PayRentButton({
   onRefused,
   onClosed,
   renterCountry = "CI",
-  // kept for future UX; not used in SDK payload
+  // kept for future UX; not sent to SDK
   lockPhone = true,
 }) {
   const [loading, setLoading] = useState(false);
@@ -54,39 +134,9 @@ export default function PayRentButton({
   const responseRef = useRef(null);
   const initCacheRef = useRef(null); // { stamp:number, data:object }
 
-  // Inject fullscreen modal CSS patch (Safari/Android); no aggressive transform resets
+  // Apply patch early and preload SDK
   useEffect(() => {
-    if (typeof document === "undefined") return;
-    if (document.getElementById("cinetpay-modal-patch")) return;
-
-    const s = document.createElement("style");
-    s.id = "cinetpay-modal-patch";
-    s.innerHTML = `
-      html, body { height: 100% !important; }
-      #cinetpay-checkout,
-      #cinetpay-checkout iframe,
-      .modal_cinetpay,
-      .CPmodal,
-      .cinetpay-modal,
-      .cinetpay-modal iframe {
-        position: fixed !important;
-        inset: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        max-width: 100% !important;
-        max-height: 100% !important;
-        z-index: 2147483647 !important;
-        display: block !important;
-        opacity: 1 !important;
-        visibility: visible !important;
-        pointer-events: auto !important;
-      }
-    `;
-    document.head.appendChild(s);
-  }, []);
-
-  // Preload SDK ASAP so it’s ready by the time user taps
-  useEffect(() => {
+    injectCinetPayModalPatch();
     loadCinetPayScript().catch(() => {});
   }, []);
 
@@ -103,26 +153,26 @@ export default function PayRentButton({
     return amountXof;
   }, [amountXof]);
 
-  // 10-digit phone only (no +225) — we DO NOT send this to CinetPay; UI collects it.
+  // Keep phone for server snapshot only
   const phone10 = useMemo(() => {
     const v = String(renterPhone10 || "").trim();
     return /^\d{10}$/.test(v) ? v : undefined;
   }, [renterPhone10]);
 
-  // Body we POST to backend (server returns compliant payload for SDK)
+  // Body -> backend init
   const body = useMemo(() => {
     return {
       unitCode,
       period: safePeriod,
       amount: safeAmount,
-      renterPhone10: phone10, // audit only; backend does NOT forward to SDK
+      renterPhone10: phone10, // server snapshot only
       renterName: (renterName || "").trim() || undefined,
       renterEmail: (renterEmail || "").trim() || undefined,
-      channels: "ALL", // keep ALL end-to-end
+      channels: "ALL", // ✅ always ALL
     };
   }, [unitCode, safePeriod, safeAmount, phone10, renterName, renterEmail]);
 
-  // Pre-initialize payment so click -> immediate getCheckout (preserve gesture)
+  // Pre-init so click -> immediate getCheckout
   useEffect(() => {
     async function preInit() {
       try {
@@ -146,18 +196,15 @@ export default function PayRentButton({
 
         initCacheRef.current = { stamp: Date.now(), data };
       } catch {
-        // ignore background errors; we’ll retry on click
+        /* ignore background errors */
       }
     }
     preInit();
   }, [unitCode, safePeriod, safeAmount, body]);
 
-  // Helper to get cached-or-fresh init (returns null if not ready)
   const getCachedInit = useCallback(() => {
     const cached = initCacheRef.current;
-    if (cached && Date.now() - cached.stamp < 3 * 60 * 1000) {
-      return cached.data;
-    }
+    if (cached && Date.now() - cached.stamp < 3 * 60 * 1000) return cached.data;
     return null;
   }, []);
 
@@ -165,13 +212,12 @@ export default function PayRentButton({
     setError("");
     setLoading(true);
     try {
-      // Guards
       if (!unitCode) throw new Error("unitCode manquant");
       if (!safePeriod) throw new Error("period.year et period.month sont requis");
       if (safeAmount == null) throw new Error("amountXof est requis");
       if (safeAmount % 5 !== 0) throw new Error("Le montant doit être un multiple de 5");
 
-      // Need init payload BEFORE getCheckout (mobile gesture)
+      // get init (cached or fresh)
       let data = getCachedInit();
       if (!data) {
         const API_BASE =
@@ -197,47 +243,39 @@ export default function PayRentButton({
       if (!data.currency) throw new Error("Devise manquante (serveur)");
       responseRef.current = data;
 
-      // Ensure SDK is ready (already preloaded)
       await loadCinetPayScript();
       if (!window.CinetPay) throw new Error("SDK CinetPay indisponible");
 
-      // Configure
       window.CinetPay.setConfig({
         apikey: data.apikey,
         site_id: data.site_id,
         mode: data.mode || "PRODUCTION",
       });
 
-      // Build checkout payload — ALWAYS channels: "ALL"; NO phone/lock fields
+      // ✅ Always ALL (per your choice), no phone fields (modal collects it)
       const checkoutPayload = {
         transaction_id: data.transaction_id,
         amount: data.amount,
         currency: data.currency,
         description: data.description || "Paiement de loyer",
-        channels: data.channels || "ALL", // 👈 force ALL
+        channels: data.channels || "ALL",
         lang: data.lang || "fr",
         notify_url: data.notify_url,
         return_url: data.return_url,
-
         customer_country: data.customer_country || (renterCountry || "CI"),
         phone_prefixe: data.phone_prefixe || "225",
-
-        // ❌ Do NOT pass phone or lock flags — Wallet/MoMo collect phone in the widget
-        // customer_phone_number: (omitted)
-        // lock_phone_number: (omitted)
-
-        // Optional customer fields — fine for CARD; safe to include when present
+        // customer_phone_number: (omit)
+        // lock_phone_number: (omit)
         customer_name: data.customer_name,
         customer_surname: data.customer_surname,
         customer_email: data.customer_email || renterEmail,
       };
 
-      // Strip undefined
       Object.keys(checkoutPayload).forEach(
         (k) => checkoutPayload[k] === undefined && delete checkoutPayload[k]
       );
 
-      // Attach listeners BEFORE getCheckout
+      // Listeners
       if (typeof window.CinetPay.onError === "function") {
         window.CinetPay.onError((evt) => {
           console.error("CinetPay onError evt:", evt);
@@ -249,30 +287,37 @@ export default function PayRentButton({
           onRefused?.(evt);
         });
       }
-
       if (typeof window.CinetPay.onClose === "function") {
         window.CinetPay.onClose(() => {
           onClosed?.();
           setLoading(false);
+          // restore scroll after close
+          document.documentElement.style.overflow = "";
+          document.body.style.overflow = "";
         });
       }
-
       if (typeof window.CinetPay.onPaymentPending === "function") {
         window.CinetPay.onPaymentPending((evt) => {
           console.log("CinetPay pending:", evt);
         });
       }
-
       if (typeof window.CinetPay.onPaymentSuccess === "function") {
         window.CinetPay.onPaymentSuccess((evt) => {
           console.log("CinetPay success:", evt);
           onAccepted?.(evt);
           setLoading(false);
+          document.documentElement.style.overflow = "";
+          document.body.style.overflow = "";
         });
       }
 
-      // 🚀 Launch checkout immediately (user gesture preserved on mobile)
+      // Prevent page scroll under modal (iOS)
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+
+      // Launch and nudge visibility a few times so the iframe is never hidden
       window.CinetPay.getCheckout(checkoutPayload);
+      nudgeModalVisibility();
     } catch (e) {
       console.error("CinetPay error:", e?.response?.data || e.message || e);
       setError(
