@@ -170,9 +170,22 @@ export default function PropertyDetailView() {
                     </div>
                   </div>
 
-                  <span style={isOccupied ? styles.badgeOccupied : styles.badgeVacant}>
-                    {isOccupied ? <><FaCheckCircle />&nbsp; Occupé</> : <><FaMinusCircle />&nbsp; Libre</>}
-                  </span>
+                  {isOccupied ? (
+                    unit.latestPayment ? (
+                        <span style={styles.badgePaid}>
+                        <FaCheckCircle />&nbsp; Payé
+                        </span>
+                    ) : (
+                        <span style={styles.badgeOccupied}>
+                        <FaCheckCircle />&nbsp; Occupé
+                        </span>
+                    )
+                    ) : (
+                    <span style={styles.badgeVacant}>
+                        <FaMinusCircle />&nbsp; Libre
+                    </span>
+                    )}
+
                 </div>
 
                 {/* Occupant or invite */}
@@ -215,7 +228,23 @@ export default function PropertyDetailView() {
                 {/* Footer */}
                 <div style={styles.footerNote}>
                   <span style={{ color: '#94a3b8' }}>•</span>&nbsp;Statut du loyer:&nbsp;
-                  <span style={{ color: '#f59e0b', fontWeight: 700 }}>À implémenter</span>
+                  {unit.latestPayment ? (
+                    <span style={{ color: '#15803d', fontWeight: 700 }}>
+                        Loyer payé le&nbsp;
+                        {new Date(unit.latestPayment.date).toLocaleString('fr-FR', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        })}
+                    </span>
+                    ) : (
+                    <span style={{ color: '#f59e0b', fontWeight: 700 }}>
+                        En attente
+                    </span>
+                    )}
+
                 </div>
               </div>
             );
@@ -398,4 +427,16 @@ const styles = {
     cursor: 'pointer',
     boxShadow: '0 10px 20px rgba(0,0,0,0.18)',
   },
+  badgePaid: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    background: '#d1fae5',
+    color: '#065f46',
+    border: '1px solid #a7f3d0',
+    borderRadius: 999,
+    padding: '8px 12px',
+    fontWeight: 700,
+  },
+  
 };
