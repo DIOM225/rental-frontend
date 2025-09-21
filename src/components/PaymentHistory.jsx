@@ -15,21 +15,28 @@ function PaymentHistory({ history, historyLoading, formatFCFA }) {
         />
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
-          {history.map((p) => (
-            <div
-              key={p._id || p.transactionId}
-              style={styles.item}
-            >
-              <div style={styles.colLeft}>
-                {p.period?.month}/{p.period?.year} — {p.unitCode}
-                <div style={styles.sub}>{p.transactionId}</div>
+          {history.map((p) => {
+            // Prefer providerStatus if present, else fall back to status
+            const displayStatus = p.providerStatus || p.status || 'CREATED';
+            return (
+              <div key={p._id || p.transactionId} style={styles.item}>
+                <div style={styles.colLeft}>
+                  {p.period?.month}/{p.period?.year} — {p.unitCode}
+                  <div style={styles.sub}>{p.transactionId}</div>
+                </div>
+                <div style={styles.col}>
+                  {formatFCFA(
+                    typeof p.netAmount === 'number' && p.netAmount > 0
+                      ? p.netAmount
+                      : p.amount
+                  )}
+                </div>
+                <div style={{ ...styles.col, color: statusColor(displayStatus) }}>
+                  {displayStatus}
+                </div>
               </div>
-              <div style={styles.col}>{formatFCFA(p.netAmount > 0 ? p.netAmount : p.amount)}</div>
-              <div style={{ ...styles.col, color: statusColor(p.status) }}>
-                {p.status}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -39,7 +46,7 @@ function PaymentHistory({ history, historyLoading, formatFCFA }) {
 function statusColor(status) {
   if (status === 'ACCEPTED') return '#065f46';
   if (status === 'REFUSED') return '#991b1b';
-  return '#92400e';
+  return '#92400e'; // CREATED / PENDING
 }
 
 const styles = {
