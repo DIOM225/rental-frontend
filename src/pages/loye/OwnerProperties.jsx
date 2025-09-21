@@ -76,7 +76,7 @@ function OwnerProperties() {
     (acc, p) => {
       const expected = (p.units || []).reduce((sum, u) => sum + (u.rent || 0), 0);
       const confirmed = (p.units || []).reduce(
-        (sum, u) => (u.renterId ? sum + (u.rent || 0) : sum),
+        (sum, u) => (u.renterId && u.rentPaid ? sum + (u.rent || 0) : sum),
         0
       );
       acc.totalExpected += expected;
