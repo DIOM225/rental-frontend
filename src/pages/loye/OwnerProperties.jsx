@@ -74,17 +74,13 @@ function OwnerProperties() {
   // 🔢 Aggregate totals for the top revenue card (confirmed / expected)
   const { totalConfirmed, totalExpected } = properties.reduce(
     (acc, p) => {
-      const expected = (p.units || []).reduce((sum, u) => sum + (u.rent || 0), 0);
-      const confirmed = (p.units || []).reduce(
-        (sum, u) => (u.renterId && u.rentPaid ? sum + (u.rent || 0) : sum),
-        0
-      );
-      acc.totalExpected += expected;
-      acc.totalConfirmed += confirmed;
+      acc.totalConfirmed += p.revenue?.confirmed || 0;
+      acc.totalExpected += p.revenue?.expected || 0;
       return acc;
     },
     { totalConfirmed: 0, totalExpected: 0 }
   );
+  
 
   return (
     <div style={styles.container}>
@@ -191,11 +187,9 @@ function OwnerProperties() {
           </div>
         ) : (
           properties.map((property) => {
-            const expectedTotal = property.units?.reduce((sum, u) => sum + (u.rent || 0), 0);
-            const confirmedTotal = property.units?.reduce(
-              (sum, u) => (u.renterId ? sum + (u.rent || 0) : sum),
-              0
-            );
+            const confirmedTotal = property.revenue?.confirmed || 0;
+            const expectedTotal = property.revenue?.expected || 0;
+            
             return (
               <div key={property._id} style={styles.propertyCard}>
                 <div style={styles.propertyTop}>
