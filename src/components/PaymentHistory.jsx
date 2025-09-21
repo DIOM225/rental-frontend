@@ -1,4 +1,3 @@
-// 📄 src/components/PaymentHistory.jsx
 import EmptyState from './EmptyState';
 
 function PaymentHistory({ history, historyLoading, formatFCFA }) {
@@ -16,8 +15,16 @@ function PaymentHistory({ history, historyLoading, formatFCFA }) {
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
           {history.map((p) => {
-            // Prefer providerStatus if present, else fall back to status
-            const displayStatus = p.providerStatus || p.status || 'CREATED';
+            const rawStatus = p.providerStatus || p.status;
+            const displayStatus = normalizeStatus(rawStatus);
+            console.log('🧾 Status Debug:', {
+                transactionId: p.transactionId,
+                rawStatus,
+                displayStatus,
+                providerStatus: p.providerStatus,
+                status: p.status
+              });              
+
             return (
               <div key={p._id || p.transactionId} style={styles.item}>
                 <div style={styles.colLeft}>
@@ -32,7 +39,7 @@ function PaymentHistory({ history, historyLoading, formatFCFA }) {
                   )}
                 </div>
                 <div style={{ ...styles.col, color: statusColor(displayStatus) }}>
-                  {displayStatus}
+                  {formatStatusLabel(displayStatus)}
                 </div>
               </div>
             );
@@ -43,10 +50,29 @@ function PaymentHistory({ history, historyLoading, formatFCFA }) {
   );
 }
 
+// 🔍 Normalize status to uppercase and standard values
+function normalizeStatus(status) {
+  const s = (status || '').toUpperCase();
+  if (['ACCEPTED', 'REFUSED', 'PENDING'].includes(s)) return s;
+  return 'CREATED';
+}
+
+// 🎨 Assign colors based on status
 function statusColor(status) {
-  if (status === 'ACCEPTED') return '#065f46';
-  if (status === 'REFUSED') return '#991b1b';
-  return '#92400e'; // CREATED / PENDING
+  if (status === 'ACCEPTED') return '#065f46'; // Green
+  if (status === 'REFUSED') return '#991b1b';  // Red
+  return '#92400e';                            // Orange (PENDING / CREATED)
+}
+
+// ✅ Updated status labels
+function formatStatusLabel(status) {
+  const labels = {
+    ACCEPTED: '✅ Payé',
+    REFUSED: '❌ Échoué',
+    PENDING: '⏳ En attente',
+    CREATED: '🆕 Créé'
+  };
+  return labels[status] || status;
 }
 
 const styles = {
