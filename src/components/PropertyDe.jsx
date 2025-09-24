@@ -1,4 +1,3 @@
-// 📄 src/pages/loye/PropertyDetailView.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from '../../utils/axiosInstance';
@@ -40,7 +39,9 @@ export default function PropertyDetail() {
     return { total, occupied, rate };
   }, [property]);
 
+  // ✅ Track changes from unit cards
   const handleChange = (unitId, changes) => {
+    console.log('📝 Registered change for:', unitId, changes);
     setPendingChanges((prev) => ({
       ...prev,
       [unitId]: {
@@ -50,14 +51,17 @@ export default function PropertyDetail() {
     }));
   };
 
+  // ✅ Save all pending changes
   const handleSaveAll = async () => {
+    console.log('💾 Saving these changes:', pendingChanges);
     setSaving(true);
     try {
       const updates = Object.entries(pendingChanges);
 
       for (const [unitId, changes] of updates) {
+        console.log(`🔧 PATCH /api/loye/units/${unitId}`, changes);
         await axios.patch(`/api/loye/units/${unitId}`, {
-          ...(changes.rent !== undefined && { rent: Number(changes.rent) }),
+          ...(changes.amount !== undefined && { amount: Number(changes.amount) }),
           ...(changes.rentDueDate !== undefined && { rentDueDate: Number(changes.rentDueDate) }),
         });
       }
@@ -68,7 +72,7 @@ export default function PropertyDetail() {
       setShowConfirm(false);
     } catch (err) {
       console.error('❌ Save failed:', err);
-      alert('Erreur lors de la sauvegarde.');
+      alert('Erreur lors de l’enregistrement.');
     }
     setSaving(false);
   };

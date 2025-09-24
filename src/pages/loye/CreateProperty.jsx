@@ -65,8 +65,11 @@ function CreateProperty() {
   const [address, setAddress] = useState('');
   const [units, setUnits] = useState({
     studio: { count: '', rent: '' },
-    '2br': { count: '', rent: '' },
-    '3br': { count: '', rent: '' },
+    '1chambre': { count: '', rent: '' },
+    '2chambres': { count: '', rent: '' },
+    '3chambres': { count: '', rent: '' },
+    '4chambres': { count: '', rent: '' },
+    duplex: { count: '', rent: '' },
   });
   const [message, setMessage] = useState('');
   const [inviteCodes, setInviteCodes] = useState(null);
@@ -192,27 +195,13 @@ function CreateProperty() {
           </div>
 
           {/* Unit types */}
-          <UnitCard
-            label="STUDIO"
-            typeKey="studio"
-            units={units}
-            onUnitChange={handleUnitChange}
-            styles={styles}
-          />
-          <UnitCard
-            label="2BR"
-            typeKey="2br"
-            units={units}
-            onUnitChange={handleUnitChange}
-            styles={styles}
-          />
-          <UnitCard
-            label="3BR"
-            typeKey="3br"
-            units={units}
-            onUnitChange={handleUnitChange}
-            styles={styles}
-          />
+          <UnitCard label="Studio" typeKey="studio" units={units} onUnitChange={handleUnitChange} styles={styles} />
+          <UnitCard label="1 chambre" typeKey="1chambre" units={units} onUnitChange={handleUnitChange} styles={styles} />
+          <UnitCard label="2 chambres" typeKey="2chambres" units={units} onUnitChange={handleUnitChange} styles={styles} />
+          <UnitCard label="3 chambres" typeKey="3chambres" units={units} onUnitChange={handleUnitChange} styles={styles} />
+          <UnitCard label="4+ chambres" typeKey="4chambres" units={units} onUnitChange={handleUnitChange} styles={styles} />
+          <UnitCard label="Duplex" typeKey="duplex" units={units} onUnitChange={handleUnitChange} styles={styles} />
+
 
           {/* Footer */}
           <div style={styles.formFooter}>

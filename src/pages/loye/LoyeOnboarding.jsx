@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../../utils/axiosInstance';
+import { FaHome, FaBuilding, FaUsers } from 'react-icons/fa';
 
 function LoyeOnboarding() {
   const [step, setStep] = useState(null);
@@ -52,7 +53,6 @@ function LoyeOnboarding() {
         } else {
           setStep(1);
         }
-
       } catch (err) {
         console.error('Failed to check Loye role:', err.response?.data || err.message || err);
         setStep(1);
@@ -125,22 +125,60 @@ function LoyeOnboarding() {
     }
   };
 
-  if (step === null) return null;
-
+  // 👇 STEP 1: Role Selection — now using card-style UI
   if (step === 1) {
+    const roles = [
+      {
+        id: 'renter',
+        title: 'Locataire',
+        description: 'Je souhaite me connecter à mon propriétaire pour commencer à payer mon loyer en ligne',
+        icon: <FaHome size={32} color="#3B82F6" />,
+        color: '#3B82F6',
+      },
+      {
+        id: 'owner',
+        title: 'Propriétaire',
+        description: 'Je possède des biens immobiliers et je souhaite permettre à mes locataires de payer leur loyer en ligne.',
+        icon: <FaBuilding size={32} color="#10B981" />,
+        color: '#10B981',
+      },
+      {
+        id: 'manager',
+        title: 'Gestionnaire',
+        description: 'Je gère des biens immobiliers pour plusieurs propriétaires et je souhaite permettre à leurs locataires de payer leur loyer en ligne.',
+        icon: <FaUsers size={32} color="#F97316" />,
+        color: '#F97316',
+      }
+    ];
+
     return (
       <div style={styles.container}>
-        <h2>Bienvenue sur Loye</h2>
-        <p>Choisissez votre rôle :</p>
-        <div style={styles.roles}>
-          <button onClick={() => { setRole('renter'); setStep(2); }} style={styles.button}>Locataire</button>
-          <button onClick={() => { setRole('owner'); setStep(3); }} style={styles.button}>Propriétaire</button>
-          <button onClick={() => { setRole('manager'); setStep(3); }} style={styles.button}>Gestionnaire</button>
+        <h2 style={styles.heading}>Bienvenue sur Loye</h2>
+        <p style={styles.subheading}>Choisissez votre rôle pour commencer</p>
+
+        <div style={styles.grid}>
+          {roles.map((r) => (
+            <div key={r.id} style={styles.card}>
+              <div style={{ ...styles.iconBox, backgroundColor: r.color + '20' }}>{r.icon}</div>
+              <h3 style={styles.cardTitle}>{r.title}</h3>
+              <p style={styles.cardDesc}>{r.description}</p>
+              <button
+                style={{ ...styles.cardBtn, backgroundColor: r.color }}
+                onClick={() => {
+                  setRole(r.id);
+                  setStep(r.id === 'renter' ? 2 : 3);
+                }}
+              >
+                Choisir ce rôle
+              </button>
+            </div>
+          ))}
         </div>
       </div>
     );
   }
 
+  // 👇 STEP 2: Invite Code
   if (step === 2) {
     return (
       <div style={styles.container}>
@@ -164,6 +202,7 @@ function LoyeOnboarding() {
     );
   }
 
+  // 👇 STEP 3: Invite or not
   if (step === 3) {
     return (
       <div style={styles.container}>
@@ -185,13 +224,61 @@ function LoyeOnboarding() {
 
 const styles = {
   container: {
-    maxWidth: '420px',
+    maxWidth: '1100px',
     margin: '3rem auto',
     padding: '2rem',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
     textAlign: 'center',
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#f8fafc',
+  },
+  heading: {
+    fontSize: '2rem',
+    fontWeight: 700,
+    marginBottom: '0.5rem',
+  },
+  subheading: {
+    fontSize: '1rem',
+    color: '#555',
+    marginBottom: '2rem',
+  },
+  grid: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '2rem',
+    flexWrap: 'wrap',
+  },
+  card: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: '2rem',
+    width: '300px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+    textAlign: 'center',
+  },
+  iconBox: {
+    padding: '1rem',
+    borderRadius: '10px',
+    marginBottom: '1rem',
+    display: 'inline-flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardTitle: {
+    fontSize: '1.2rem',
+    fontWeight: 600,
+    marginBottom: '0.5rem',
+  },
+  cardDesc: {
+    fontSize: '0.95rem',
+    color: '#555',
+    marginBottom: '1.5rem',
+  },
+  cardBtn: {
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '0.6rem 1.2rem',
+    fontSize: '1rem',
+    cursor: 'pointer',
   },
   form: {
     marginTop: '1.5rem',

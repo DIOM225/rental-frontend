@@ -1,4 +1,5 @@
-import PropertyDetail from '../PropertyDetail';
+import PropertyDetail from '../loye/PropertyDetailView'; // ✅ correct name & path
+
 
 function ListingPreview() {
   return <PropertyDetail isAdminPreview={true} />;

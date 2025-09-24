@@ -42,7 +42,6 @@ export default function PayRentButton({
         throw new Error(data.error || "Erreur inconnue");
       }
     } catch (err) {
-      console.error(err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -50,20 +49,33 @@ export default function PayRentButton({
   };
 
   return (
-    <div className={`inline-flex flex-col gap-2 ${className}`}>
+    <div className={className} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
       <button
         type="button"
         onClick={startRedirect}
         disabled={loading}
-        className={`px-4 py-2 rounded-xl text-white shadow ${
-          loading ? "opacity-50 cursor-wait" : "hover:opacity-90"
-        }`}
-        style={{ background: "#10b981" }}
+        style={{
+          backgroundColor: "#10b981", // green
+          color: "#fff",
+          padding: "10px 16px",
+          borderRadius: "8px",
+          border: "none", // ✅ remove black border
+          cursor: loading ? "wait" : "pointer",
+          opacity: loading ? 0.6 : 1,
+          fontWeight: 700,
+          fontSize: "14px",
+          boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+          transition: "opacity 0.2s ease",
+        }}
       >
         {loading ? "Redirection..." : label}
       </button>
 
-      {error && <div className="text-red-600 text-sm mt-1">{error}</div>}
+      {error && (
+        <div style={{ color: "#dc2626", fontSize: "0.85rem", marginTop: "4px" }}>
+          {error}
+        </div>
+      )}
     </div>
   );
 }

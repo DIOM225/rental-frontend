@@ -1,4 +1,4 @@
-// 📄 src/pages/loye/LoyeDashboard.jsx
+// client/src/pages/loye/LoyeDashboard.jsx
 import { useEffect, useMemo, useState } from 'react';
 import { FaMapMarkerAlt } from 'react-icons/fa';
 import axios from '../../utils/axiosInstance';
@@ -6,7 +6,6 @@ import axios from '../../utils/axiosInstance';
 import RentBanner from '../../components/RentBanner';
 import RentMetrics from '../../components/RentMetrics';
 import PaymentHistory from '../../components/PaymentHistory';
-import PropertyDetails from '../../components/PropertyDetails';
 import ContactDetails from '../../components/ContactDetails';
 
 import { capitalizeWords, isBlank, formatFCFA } from '../../utils/formatting';
@@ -16,7 +15,7 @@ function LoyeDashboard() {
   const [loading, setLoading] = useState(true);
 
   // tabs
-  const [activeTab, setActiveTab] = useState('history'); // 'history' | 'details' | 'contact'
+  const [activeTab, setActiveTab] = useState('history'); // 'history' | 'contact'
 
   // payment history
   const [history, setHistory] = useState([]);
@@ -44,22 +43,41 @@ function LoyeDashboard() {
             typeof raw?.rentAmount === 'number'
               ? raw.rentAmount
               : (typeof raw?.rent === 'number' ? raw.rent : undefined),
+
+          // ✅ Add rentDueDate from backend
+          rentDueDate: raw?.rentDueDate || raw?.unit?.rentDueDate || 10,
+
           dueDate: raw?.dueDate || raw?.nextDueDate || raw?.dueDateText,
           daysRemaining: raw?.daysRemaining,
           leaseEnd: raw?.leaseEnd || raw?.leaseEndText,
           unitType: raw?.unitType || raw?.type || raw?.unit?.type,
           email: raw?.email || raw?.user?.email,
           phone: raw?.phone || raw?.user?.phone,
-          mgmtEmail: raw?.mgmtEmail || raw?.manager?.email,
-          mgmtPhone: raw?.mgmtPhone || raw?.manager?.phone,
-          hours: raw?.hours || raw?.manager?.hours || raw?.officeHours,
+
+          // ✅ Manager info (fallback to owner if manager not available)
+          mgmtEmail:
+            raw?.mgmtEmail ||
+            raw?.manager?.email ||
+            raw?.owner?.email ||
+            null,
+          mgmtPhone:
+            raw?.mgmtPhone ||
+            raw?.manager?.phone ||
+            raw?.owner?.phone ||
+            null,
+          hours:
+            raw?.hours ||
+            raw?.manager?.hours ||
+            raw?.officeHours ||
+            raw?.owner?.hours ||
+            null,
+
           propertyName: raw?.propertyName,
           propertyAddress: raw?.propertyAddress
         };
 
         setUnitData(normalized);
       } catch (e) {
-        console.error('Dashboard load failed:', e);
         setUnitData({});
       } finally {
         setLoading(false);
@@ -134,8 +152,7 @@ function LoyeDashboard() {
           headers: { Authorization: `Bearer ${token}` }
         });
         setHistory(Array.isArray(data?.payments) ? data.payments : []);
-      } catch (e) {
-        console.warn('Failed to load payment history.', e?.message || e);
+      } catch {
         setHistory([]);
       } finally {
         setHistoryLoading(false);
@@ -147,7 +164,6 @@ function LoyeDashboard() {
 
   // payment callbacks
   const handleAccepted = async () => {
-    // refresh history after payment success
     if (safeUnitCode) {
       try {
         setHistoryLoading(true);
@@ -167,12 +183,11 @@ function LoyeDashboard() {
   };
 
   const handleRefused = () => {
-    console.log('Paiement refusé');
     alert('Paiement refusé ❌');
   };
 
   const handleClosed = () => {
-    console.log('Checkout fermé');
+    // no log
   };
 
   if (loading || !unitData) {
@@ -240,7 +255,7 @@ function LoyeDashboard() {
           padding: 4
         }}
       >
-        {['history', 'details', 'contact'].map((tab) => (
+        {['history', 'contact'].map((tab) => (
           <button
             key={tab}
             className="loye-tab"
@@ -257,28 +272,17 @@ function LoyeDashboard() {
               boxShadow: activeTab === tab ? '0 1px 3px rgba(0,0,0,0.05)' : undefined
             }}
           >
-            {tab === 'history' ? 'Historique' : tab === 'details' ? 'Détails' : 'Contact'}
+            {tab === 'history' ? 'Historique' : 'Contact'}
           </button>
         ))}
       </div>
 
       {/* Tab panels */}
       {activeTab === 'history' && (
-        // ⛳️ NO OUTER CARD/TITLE HERE to avoid duplicate — PaymentHistory renders its own.
         <PaymentHistory
           history={history}
           historyLoading={historyLoading}
           formatFCFA={formatFCFA}
-        />
-      )}
-
-      {activeTab === 'details' && (
-        <PropertyDetails
-          unitData={unitData}
-          formatFCFA={formatFCFA}
-          safeUnitCode={safeUnitCode}
-          red={red}
-          isBlank={isBlank}
         />
       )}
 

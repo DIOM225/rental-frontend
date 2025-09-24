@@ -1,9 +1,16 @@
 // 📄 src/components/ContactDetails.jsx
 function ContactDetails({ unitData, field }) {
+    // Check if manager info exists
+    const hasManager =
+      Boolean(unitData?.mgmtEmail) ||
+      Boolean(unitData?.mgmtPhone) ||
+      Boolean(unitData?.hours);
+  
     return (
       <div className="loye-card" style={styles.card}>
         <h3 style={styles.cardTitle}>📞 Informations de contact</h3>
         <div style={styles.infoRow}>
+          {/* Left column: renter's own info */}
           <div style={{ flex: 1 }}>
             <h4 style={styles.infoHeader}>Vos infos</h4>
             <p style={styles.infoText}>
@@ -12,14 +19,18 @@ function ContactDetails({ unitData, field }) {
               📞 Téléphone: {field(unitData.phone, 'phone')}
             </p>
           </div>
+  
+          {/* Right column: Manager or Owner */}
           <div style={{ flex: 1 }}>
-            <h4 style={styles.infoHeader}>Gestionnaire</h4>
+            <h4 style={styles.infoHeader}>
+              {hasManager ? 'Gestionnaire' : 'Propriétaire'}
+            </h4>
             <p style={styles.infoText}>
-              📧 Email: {field(unitData.mgmtEmail, 'mgmtEmail')}
+              📧 Email: {field(unitData.mgmtEmail, hasManager ? 'mgmtEmail' : 'ownerEmail')}
               <br />
-              📞 Téléphone: {field(unitData.mgmtPhone, 'mgmtPhone')}
+              📞 Téléphone: {field(unitData.mgmtPhone, hasManager ? 'mgmtPhone' : 'ownerPhone')}
               <br />
-              ⏰ Heures: {field(unitData.hours, 'hours')}
+              ⏰ Heures: {field(unitData.hours, hasManager ? 'hours' : 'ownerHours')}
             </p>
           </div>
         </div>
@@ -36,7 +47,12 @@ function ContactDetails({ unitData, field }) {
       border: '1px solid #eef2f7'
     },
     cardTitle: { fontSize: '1.1rem', fontWeight: 800, marginBottom: '0.8rem' },
-    infoRow: { display: 'flex', justifyContent: 'space-between', gap: '2rem', flexWrap: 'wrap' },
+    infoRow: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      gap: '2rem',
+      flexWrap: 'wrap'
+    },
     infoHeader: { fontSize: '1rem', fontWeight: 800, marginBottom: '0.4rem' },
     infoText: { margin: 0, lineHeight: 1.8, color: '#334155' }
   };

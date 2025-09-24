@@ -11,7 +11,8 @@ import RequireLoyeRole from './components/RequireLoyeRole';
 import Home from './pages/Home';
 import Monthly from './pages/Monthly';
 import Daily from './pages/Daily';
-import PropertyDetail from './pages/PropertyDetail';
+import PropertyDetail from './pages/loye/PropertyDetailView';
+
 import AddListing from './pages/AddListing';
 import Login from './pages/Login';
 import AuthPage from './pages/AuthPage';

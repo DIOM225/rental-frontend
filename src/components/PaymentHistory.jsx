@@ -17,13 +17,6 @@ function PaymentHistory({ history, historyLoading, formatFCFA }) {
           {history.map((p) => {
             const rawStatus = p.providerStatus || p.status;
             const displayStatus = normalizeStatus(rawStatus);
-            console.log('🧾 Status Debug:', {
-                transactionId: p.transactionId,
-                rawStatus,
-                displayStatus,
-                providerStatus: p.providerStatus,
-                status: p.status
-              });              
 
             return (
               <div key={p._id || p.transactionId} style={styles.item}>
