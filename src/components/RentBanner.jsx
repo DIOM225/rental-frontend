@@ -1,6 +1,6 @@
-import { FaMobileAlt } from 'react-icons/fa';
 import PayRentButton from './PayRentButton';
 import { formatFCFA } from '../utils/formatting';
+import './RentBanner.css'; // ✅ important
 
 function RentBanner({
   unitData,
@@ -10,15 +10,11 @@ function RentBanner({
   onRefused,
   onClosed
 }) {
-  // ✅ Use real due date from backend (fallback to 10 if missing)
   const dueDay = unitData?.rentDueDate || 10;
 
-  // Compute next due date (current or next month)
   const today = new Date();
   let nextDueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
-
   if (today > nextDueDate) {
-    // If today is past the due day → push to next month
     nextDueDate = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
   }
 
@@ -28,19 +24,16 @@ function RentBanner({
     year: 'numeric',
   });
 
-  // ✅ Days remaining
   const dr = Math.ceil((nextDueDate - today) / (1000 * 60 * 60 * 24));
+  const bannerVariant = dr > 3 ? 'success' : dr >= 0 ? 'warning' : 'danger';
 
-  // Banner color variant
-  const bannerVariant =
-    dr > 3 ? 'success' : dr >= 0 ? 'warning' : 'danger';
+  const colors = {
+    success: { bg: '#ecfdf5', border: '#bbf7d0', text: '#065f46' },
+    warning: { bg: '#fffbeb', border: '#fde68a', text: '#92400e' },
+    danger: { bg: '#fef2f2', border: '#fecaca', text: '#991b1b' },
+  };
 
-  const statusColor =
-    bannerVariant === 'success'
-      ? '#065f46'
-      : bannerVariant === 'warning'
-      ? '#92400e'
-      : '#991b1b';
+  const c = colors[bannerVariant];
 
   const statusLine =
     dr > 1
@@ -51,104 +44,57 @@ function RentBanner({
       ? 'Paiement aujourd’hui'
       : `En retard de ${Math.abs(dr)} jours`;
 
-  const bannerStyle = {
-    padding: '1rem',
-    borderRadius: '14px',
-    margin: '1rem 0 1.5rem',
-    backgroundColor:
-      bannerVariant === 'success'
-        ? '#ecfdf5'
-        : bannerVariant === 'warning'
-        ? '#fffbeb'
-        : '#fef2f2',
-    border: '1px solid #e2e8f0',
-  };
-
   return (
-    <div className="loye-banner" style={bannerStyle}>
-      <div
-        className="loye-banner-inner"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          width: '100%',
-          gap: 16,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div>
-          <p
-            style={{
-              fontWeight: 800,
-              fontSize: '1rem',
-              color: statusColor,
-              margin: 0,
-            }}
-          >
-            🕒 {statusLine}
-          </p>
+    <div
+      className="loye-banner"
+      style={{
+        backgroundColor: c.bg,
+        border: `1px solid ${c.border}`,
+        borderRadius: '14px',
+        padding: '1.2rem',
+        margin: '1rem 0 1.5rem',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+      }}
+    >
+      <p style={{ fontWeight: 700, fontSize: '1rem', color: c.text, marginBottom: '0.4rem' }}>
+        🕒 {statusLine}
+      </p>
 
-          <p style={{ margin: '6px 0 0', fontSize: '0.95rem', color: '#334155' }}>
-            Prochain paiement de{' '}
-            <strong>
-              {field(
-                Number.isFinite(unitData?.rentAmount)
-                  ? formatFCFA(unitData.rentAmount)
-                  : '',
-                'rentAmount'
-              )}
-            </strong>{' '}
-            dû le {field(prettyDueDate, 'rentDueDate')}
-          </p>
-
-          {unitData?.propertyAddress && (
-            <p style={{ marginTop: 4, color: '#334155' }}>
-              📍 {unitData.propertyAddress}
-            </p>
+      <p style={{ margin: '0.5rem 0', fontSize: '0.95rem', color: '#334155' }}>
+        Prochain paiement de{' '}
+        <strong>
+          {field(
+            Number.isFinite(unitData?.rentAmount)
+              ? formatFCFA(unitData.rentAmount)
+              : '',
+            'rentAmount'
           )}
-        </div>
+        </strong>{' '}
+        dû le {field(prettyDueDate, 'rentDueDate')}
+      </p>
 
-        <div
-          className="loye-banner-buttons"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.8rem',
+      {unitData?.propertyAddress && (
+        <p style={{ marginTop: 4, color: '#64748b', fontSize: '0.9rem' }}>
+          📍 {unitData.propertyAddress}
+        </p>
+      )}
+
+      {/* ✅ Wrapper for button */}
+      <div className="banner-btn-wrapper">
+        <PayRentButton
+          unitCode={safeUnitCode || undefined}
+          period={{
+            year: nextDueDate.getFullYear(),
+            month: nextDueDate.getMonth() + 1,
           }}
-        >
-          <span
-            style={{
-              backgroundColor: '#e0edff',
-              padding: '0.35rem 0.6rem',
-              borderRadius: '999px',
-              fontSize: '0.85rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              border: '1px solid #c7dbff',
-              color: '#2563eb',
-              fontWeight: 700,
-            }}
-          >
-            <FaMobileAlt /> Wallet prêt
-          </span>
-
-          <PayRentButton
-            unitCode={safeUnitCode || undefined}
-            period={{
-              year: nextDueDate.getFullYear(),
-              month: nextDueDate.getMonth() + 1,
-            }}
-            amountXof={unitData?.rentAmount}
-            label="Payer le loyer"
-            renterName={unitData?.name}
-            renterEmail={unitData?.email}
-            onAccepted={onAccepted}
-            onRefused={onRefused}
-            onClosed={onClosed}
-          />
-        </div>
+          amountXof={unitData?.rentAmount}
+          label="Payer le loyer"
+          renterName={unitData?.name}
+          renterEmail={unitData?.email}
+          onAccepted={onAccepted}
+          onRefused={onRefused}
+          onClosed={onClosed}
+        />
       </div>
 
       {!safeUnitCode && (
