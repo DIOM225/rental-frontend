@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 function Navbar() {
@@ -6,6 +6,9 @@ function Navbar() {
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('user')));
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.matchMedia('(max-width: 768px)').matches);
+
+  const menuRef = useRef(null);
+  const buttonRef = useRef(null);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -16,12 +19,33 @@ function Navbar() {
     window.location.reload();
   };
 
+  // 🔹 Detect resize (desktop vs mobile)
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 768px)');
     const handleResize = (e) => setIsMobile(e.matches);
     mediaQuery.addEventListener('change', handleResize);
     return () => mediaQuery.removeEventListener('change', handleResize);
   }, []);
+
+  // 🔹 Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(e.target) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(e.target)
+      ) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    if (isMobileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMobileMenuOpen]);
 
   const renderLinks = () => (
     <>
@@ -68,6 +92,7 @@ function Navbar() {
       {isMobile ? (
         <>
           <button
+            ref={buttonRef}
             onClick={() => setIsMobileMenuOpen(prev => !prev)}
             style={styles.hamburger}
             aria-label="Toggle navigation"
@@ -76,7 +101,7 @@ function Navbar() {
           </button>
 
           {isMobileMenuOpen && (
-            <div style={styles.mobileMenu}>
+            <div style={styles.mobileMenu} ref={menuRef}>
               {renderLinks()}
             </div>
           )}
