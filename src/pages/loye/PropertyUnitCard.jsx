@@ -1,6 +1,7 @@
 // 📄 src/pages/loye/PropertyUnitCard.jsx
 import React, { useState, useEffect } from 'react';
-import { FaPhone, FaCheckCircle, FaMinusCircle } from 'react-icons/fa';
+import { FaPhone, FaCheckCircle, FaMinusCircle, FaEye, FaEyeSlash } from 'react-icons/fa';
+import axios from '../../utils/axiosInstance';
 
 function formatFCFA(n) {
   if (n === null || n === undefined || isNaN(n)) return '0';
@@ -12,9 +13,14 @@ function avatarInitials(name = '') {
   return (parts[0]?.[0] + (parts[1]?.[0] || '')).toUpperCase();
 }
 
-function PropertyUnitCard({ unit, editable = false, onChange = () => {} }) {
+function PropertyUnitCard({ unit, editable = false, onChange = () => {}, onUnitUpdate = () => {} }) {
   const [rent, setRent] = useState(unit.rent ?? '');
   const [dueDate, setDueDate] = useState(unit.rentDueDate ?? 10);
+
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState({ name: '', phone: '', birthday: '', password: '' });
+  const [showPassword, setShowPassword] = useState(false);
 
   // Sync local state if props change
   useEffect(() => {
@@ -40,6 +46,45 @@ function PropertyUnitCard({ unit, editable = false, onChange = () => {} }) {
   };
 
   const isOccupied = !!unit.renterId || !!unit.renter;
+
+  // ✅ Handle account creation
+  const handleCreateAccount = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('❌ Vous devez être connecté.');
+        return;
+      }
+
+      const res = await axios.post(
+        `/api/loye/units/${unit._id}/create-renter`,
+        {
+          name: form.name,
+          phone: form.phone,
+          birthday: form.birthday,
+          password: form.password,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      console.log('✅ Renter created:', res.data);
+
+      // 👉 Update parent state directly
+      onUnitUpdate(unit._id, { renter: res.data.renter, renterId: res.data.renter._id });
+
+      // Reset modal state
+      setShowModal(false);
+      setForm({ name: '', phone: '', birthday: '', password: '' });
+      setShowPassword(false);
+
+      alert('✅ Compte locataire créé et lié avec succès.');
+    } catch (err) {
+      console.error('❌ Erreur lors de la création du compte:', err);
+      alert(err.response?.data?.message || 'Erreur lors de la création du compte.');
+    }
+  };
 
   return (
     <div style={styles.unitCard}>
@@ -126,14 +171,11 @@ function PropertyUnitCard({ unit, editable = false, onChange = () => {} }) {
           </div>
         </div>
       ) : (
-        <div style={{ color: '#334155' }}>
-          {unit.inviteCode ? (
-            <>
-              Code d'invitation: <strong>{unit.inviteCode}</strong>
-            </>
-          ) : (
-            <>Aucun code d'invitation pour l’instant</>
-          )}
+        <div style={styles.noTenantRow}>
+          <span>Aucun compte locataire</span>
+          <button style={styles.createBtn} onClick={() => setShowModal(true)}>
+            Créer locataire
+          </button>
         </div>
       )}
 
@@ -154,6 +196,67 @@ function PropertyUnitCard({ unit, editable = false, onChange = () => {} }) {
           <span style={{ color: '#f59e0b', fontWeight: 700 }}>En attente</span>
         )}
       </div>
+
+      {/* Modal */}
+      {showModal && (
+        <div style={modalStyles.overlay}>
+          <div style={modalStyles.modal}>
+            <h3>Créer un compte locataire</h3>
+
+            <input
+              type="text"
+              placeholder="Nom complet"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              style={modalStyles.input}
+            />
+
+            <input
+              type="tel"
+              placeholder="Téléphone"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              style={modalStyles.input}
+            />
+
+            <input
+              type="date"
+              placeholder="Date de naissance"
+              value={form.birthday}
+              onChange={(e) => setForm({ ...form, birthday: e.target.value })}
+              style={modalStyles.input}
+            />
+
+            {/* Password with show/hide eye button */}
+            <div style={modalStyles.passwordRow}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Mot de passe"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                style={{ ...modalStyles.input, paddingRight: 40 }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((s) => !s)}
+                aria-label={showPassword ? 'Masquer le mot de passe' : 'Voir le mot de passe'}
+                style={modalStyles.eyeBtn}
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
+              <button style={modalStyles.cancel} onClick={() => { setShowModal(false); setShowPassword(false); }}>
+                Annuler
+              </button>
+              <button style={modalStyles.confirm} onClick={handleCreateAccount}>
+                Créer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -244,6 +347,23 @@ const styles = {
     display: 'grid',
     placeItems: 'center',
   },
+  noTenantRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    color: '#334155',
+    fontSize: 15,
+    fontWeight: 500,
+  },
+  createBtn: {
+    background: '#2563eb',
+    color: '#fff',
+    border: 'none',
+    padding: '6px 12px',
+    borderRadius: 6,
+    fontSize: 14,
+    cursor: 'pointer',
+  },
   footerNote: {
     marginTop: 12,
     paddingTop: 12,
@@ -252,6 +372,70 @@ const styles = {
     fontSize: 14,
     display: 'flex',
     alignItems: 'center',
+  },
+};
+
+const modalStyles = {
+  overlay: {
+    position: 'fixed',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    display: 'grid',
+    placeItems: 'center',
+    zIndex: 1000,
+  },
+  modal: {
+    backgroundColor: 'white',
+    padding: 24,
+    borderRadius: 12,
+    maxWidth: 420,
+    width: '94%',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+  },
+  input: {
+    padding: '8px 10px',
+    borderRadius: 6,
+    border: '1px solid #ccc',
+    fontSize: 14,
+    width: '100%',
+    boxSizing: 'border-box',
+  },
+  passwordRow: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: 8,
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    padding: 6,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#475569',
+    fontSize: 16,
+  },
+  cancel: {
+    background: '#e5e7eb',
+    border: 'none',
+    padding: '8px 16px',
+    borderRadius: 6,
+    cursor: 'pointer',
+  },
+  confirm: {
+    background: '#16a34a',
+    color: '#fff',
+    border: 'none',
+    padding: '8px 16px',
+    borderRadius: 6,
+    cursor: 'pointer',
+    fontWeight: 600,
   },
 };
 

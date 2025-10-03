@@ -1,4 +1,4 @@
-// client/src/pages/loye/LoyeDashboard.jsx
+// 📄 client/src/pages/loye/LoyeDashboard.jsx
 import { useEffect, useMemo, useState } from 'react';
 import { FaMapMarkerAlt } from 'react-icons/fa';
 import axios from '../../utils/axiosInstance';
@@ -73,7 +73,10 @@ function LoyeDashboard() {
             null,
 
           propertyName: raw?.propertyName,
-          propertyAddress: raw?.propertyAddress
+          propertyAddress: raw?.propertyAddress,
+
+          // placeholder, will update after payments fetch
+          rentStatus: "unpaid"
         };
 
         setUnitData(normalized);
@@ -152,6 +155,9 @@ function LoyeDashboard() {
           headers: { Authorization: `Bearer ${token}` }
         });
         setHistory(Array.isArray(data?.payments) ? data.payments : []);
+
+        // ✅ store rentStatus from backend
+        setUnitData(prev => ({ ...prev, rentStatus: data?.rentStatus || "unpaid" }));
       } catch {
         setHistory([]);
       } finally {
@@ -173,6 +179,9 @@ function LoyeDashboard() {
           headers: { Authorization: `Bearer ${token}` }
         });
         setHistory(Array.isArray(data?.payments) ? data.payments : []);
+
+        // ✅ refresh rentStatus too
+        setUnitData(prev => ({ ...prev, rentStatus: data?.rentStatus || "unpaid" }));
       } catch {
         // ignore
       } finally {
@@ -233,6 +242,7 @@ function LoyeDashboard() {
       {/* Payment Banner */}
       <RentBanner
         unitData={unitData}
+        rentStatus={unitData?.rentStatus}   // ✅ pass rentStatus to banner
         field={field}
         safeUnitCode={safeUnitCode}
         onAccepted={handleAccepted}

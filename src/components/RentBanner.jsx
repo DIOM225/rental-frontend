@@ -4,6 +4,7 @@ import './RentBanner.css'; // ✅ important
 
 function RentBanner({
   unitData,
+  rentStatus,   // ✅ new prop from backend
   field,
   safeUnitCode,
   onAccepted,
@@ -25,7 +26,23 @@ function RentBanner({
   });
 
   const dr = Math.ceil((nextDueDate - today) / (1000 * 60 * 60 * 24));
-  const bannerVariant = dr > 3 ? 'success' : dr >= 0 ? 'warning' : 'danger';
+
+  // ✅ Default variant logic
+  let bannerVariant = dr > 3 ? 'success' : dr >= 0 ? 'warning' : 'danger';
+  let statusLine =
+    dr > 1
+      ? `Paiement dans ${dr} jours`
+      : dr === 1
+      ? 'Paiement dans 1 jour'
+      : dr === 0
+      ? 'Paiement aujourd’hui'
+      : `En retard de ${Math.abs(dr)} jours`;
+
+  // ✅ Override if backend says already paid
+  if (rentStatus === 'paid') {
+    bannerVariant = 'success';
+    statusLine = '✅ Loyer payé pour ce mois';
+  }
 
   const colors = {
     success: { bg: '#ecfdf5', border: '#bbf7d0', text: '#065f46' },
@@ -34,15 +51,6 @@ function RentBanner({
   };
 
   const c = colors[bannerVariant];
-
-  const statusLine =
-    dr > 1
-      ? `Paiement dans ${dr} jours`
-      : dr === 1
-      ? 'Paiement dans 1 jour'
-      : dr === 0
-      ? 'Paiement aujourd’hui'
-      : `En retard de ${Math.abs(dr)} jours`;
 
   return (
     <div

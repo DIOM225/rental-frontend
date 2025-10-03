@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import axios from '../utils/axiosInstance';
 import { useNavigate, Link } from 'react-router-dom';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 function AuthPage() {
   const navigate = useNavigate();
@@ -16,6 +17,8 @@ function AuthPage() {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -149,10 +152,11 @@ function AuthPage() {
                 />
               </div>
 
+              {/* Password */}
               <div style={styles.inputGroup}>
                 <span style={styles.icon}>🔒</span>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   name="password"
                   placeholder="Mot de passe"
                   value={form.password}
@@ -164,12 +168,19 @@ function AuthPage() {
                       !isLogin && error.includes('mots de passe') ? 'red' : 'transparent',
                   }}
                 />
+                <span
+                  onClick={() => setShowPassword((s) => !s)}
+                  style={styles.eyeIcon}
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </span>
               </div>
 
+              {/* Confirm Password */}
               <div style={styles.inputGroup}>
                 <span style={styles.icon}>🔒</span>
                 <input
-                  type="password"
+                  type={showConfirm ? 'text' : 'password'}
                   name="confirmPassword"
                   placeholder="Confirmez le mot de passe"
                   value={form.confirmPassword}
@@ -180,6 +191,12 @@ function AuthPage() {
                     borderColor: error.includes('mots de passe') ? 'red' : 'transparent',
                   }}
                 />
+                <span
+                  onClick={() => setShowConfirm((s) => !s)}
+                  style={styles.eyeIcon}
+                >
+                  {showConfirm ? <FaEyeSlash /> : <FaEye />}
+                </span>
               </div>
             </>
           ) : (
@@ -201,7 +218,7 @@ function AuthPage() {
               <div style={styles.inputGroup}>
                 <span style={styles.icon}>🔒</span>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   name="password"
                   placeholder="Mot de passe"
                   value={form.password}
@@ -209,6 +226,12 @@ function AuthPage() {
                   required
                   style={styles.input}
                 />
+                <span
+                  onClick={() => setShowPassword((s) => !s)}
+                  style={styles.eyeIcon}
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </span>
               </div>
             </>
           )}
@@ -264,8 +287,15 @@ const styles = {
   inputGroup: {
     display: 'flex', alignItems: 'center',
     backgroundColor: '#f1f1f1', borderRadius: '8px', padding: '0.5rem 1rem',
+    position: 'relative',
   },
   icon: { marginRight: '0.6rem', fontSize: '1.1rem' },
+  eyeIcon: {
+    position: 'absolute',
+    right: '1rem',
+    cursor: 'pointer',
+    color: '#555',
+  },
   input: {
     border: 'none', background: 'transparent', outline: 'none',
     width: '100%', fontSize: '1rem',

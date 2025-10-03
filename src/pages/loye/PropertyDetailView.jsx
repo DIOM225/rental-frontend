@@ -35,11 +35,13 @@ export default function PropertyDetail() {
 
   const stats = useMemo(() => {
     const total = property?.units?.length || 0;
-    const occupied = property?.units?.filter((u) => u.renterId || u.renter).length || 0;
+    const occupied =
+      property?.units?.filter((u) => u.renterId || u.renter).length || 0;
     const rate = total > 0 ? Math.round((occupied / total) * 100) : 0;
     return { total, occupied, rate };
   }, [property]);
 
+  // ✅ Track rent/dueDate edits
   const handleChange = (unitId, changes) => {
     setPendingChanges((prev) => ({
       ...prev,
@@ -50,6 +52,19 @@ export default function PropertyDetail() {
     }));
   };
 
+  // ✅ Track renter creation updates from PropertyUnitCard
+  const handleUnitUpdate = (unitId, updates) => {
+    setProperty((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        units: prev.units.map((u) =>
+          u._id === unitId ? { ...u, ...updates } : u
+        ),
+      };
+    });
+  };
+
   const handleSaveAll = async () => {
     setSaving(true);
     try {
@@ -58,7 +73,9 @@ export default function PropertyDetail() {
       for (const [unitId, changes] of updates) {
         await axios.patch(`/api/loye/units/${unitId}`, {
           ...(changes.rent !== undefined && { rent: Number(changes.rent) }),
-          ...(changes.rentDueDate !== undefined && { rentDueDate: Number(changes.rentDueDate) }),
+          ...(changes.rentDueDate !== undefined && {
+            rentDueDate: Number(changes.rentDueDate),
+          }),
         });
       }
 
@@ -101,7 +118,9 @@ export default function PropertyDetail() {
           }}
         >
           <div>
-            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800 }}>{property.name}</h1>
+            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800 }}>
+              {property.name}
+            </h1>
             <p style={{ marginTop: 4 }}>{property.address}</p>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
@@ -140,10 +159,29 @@ export default function PropertyDetail() {
       </div>
 
       <div style={{ padding: '24px 16px', maxWidth: 960, margin: '0 auto' }}>
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 16,
+            flexWrap: 'wrap',
+            marginBottom: 24,
+          }}
+        >
           <KPI icon={<FaHome />} label="Total unités" value={stats.total} />
-          <KPI icon={<FaUsers />} label="Occupées" value={stats.occupied} bg="#dcfce7" color="#065f46" />
-          <KPI icon={<FaChartLine />} label="Taux d’occupation" value={`${stats.rate}%`} bg="#ede9fe" color="#5b21b6" />
+          <KPI
+            icon={<FaUsers />}
+            label="Occupées"
+            value={stats.occupied}
+            bg="#dcfce7"
+            color="#065f46"
+          />
+          <KPI
+            icon={<FaChartLine />}
+            label="Taux d’occupation"
+            value={`${stats.rate}%`}
+            bg="#ede9fe"
+            color="#5b21b6"
+          />
         </div>
 
         <h2>Unités de la propriété</h2>
@@ -154,6 +192,7 @@ export default function PropertyDetail() {
               unit={unit}
               editable={editMode}
               onChange={handleChange}
+              onUnitUpdate={handleUnitUpdate} // 👈 NEW
             />
           ))}
         </div>
@@ -164,8 +203,8 @@ export default function PropertyDetail() {
           <div style={overlayStyles.modal}>
             <h3>Confirmer les modifications</h3>
             <p>
-              Les changements de loyer ou date d’échéance seront visibles par les locataires.
-              Voulez-vous continuer ?
+              Les changements de loyer ou date d’échéance seront visibles par
+              les locataires. Voulez-vous continuer ?
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button
@@ -191,7 +230,15 @@ export default function PropertyDetail() {
 
 function KPI({ icon, label, value, bg = '#f1f5f9', color = '#0f172a' }) {
   return (
-    <div style={{ background: bg, padding: 16, borderRadius: 12, flex: 1, minWidth: 200 }}>
+    <div
+      style={{
+        background: bg,
+        padding: 16,
+        borderRadius: 12,
+        flex: 1,
+        minWidth: 200,
+      }}
+    >
       <div style={{ fontSize: 32, fontWeight: 800, color }}>{value}</div>
       <div style={{ color, marginTop: 4 }}>{label}</div>
     </div>
@@ -201,7 +248,10 @@ function KPI({ icon, label, value, bg = '#f1f5f9', color = '#0f172a' }) {
 const overlayStyles = {
   overlay: {
     position: 'fixed',
-    top: 0, left: 0, right: 0, bottom: 0,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.5)',
     display: 'grid',
     placeItems: 'center',
