@@ -7,6 +7,7 @@ export default function PayRentButton({
   period,
   renterName,
   renterEmail,
+  renterPhone, // ✅ NEW
   label = "Payer le loyer",
   className = "",
 }) {
@@ -29,6 +30,7 @@ export default function PayRentButton({
             period,
             renterName,
             renterEmail,
+            renterPhone, // ✅ include phone in request body
           }),
         }
       );
@@ -49,7 +51,10 @@ export default function PayRentButton({
   };
 
   return (
-    <div className={className} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+    <div
+      className={className}
+      style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+    >
       <button
         type="button"
         onClick={startRedirect}
@@ -59,7 +64,7 @@ export default function PayRentButton({
           color: "#fff",
           padding: "10px 16px",
           borderRadius: "8px",
-          border: "none", // ✅ remove black border
+          border: "none",
           cursor: loading ? "wait" : "pointer",
           opacity: loading ? 0.6 : 1,
           fontWeight: 700,
@@ -72,7 +77,9 @@ export default function PayRentButton({
       </button>
 
       {error && (
-        <div style={{ color: "#dc2626", fontSize: "0.85rem", marginTop: "4px" }}>
+        <div
+          style={{ color: "#dc2626", fontSize: "0.85rem", marginTop: "4px" }}
+        >
           {error}
         </div>
       )}

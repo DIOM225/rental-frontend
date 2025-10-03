@@ -9,7 +9,8 @@ function RentBanner({
   safeUnitCode,
   onAccepted,
   onRefused,
-  onClosed
+  onClosed,
+  renterPhone   // ✅ NEW: accept renterPhone from parent
 }) {
   const dueDay = unitData?.rentDueDate || 10;
 
@@ -99,6 +100,7 @@ function RentBanner({
           label="Payer le loyer"
           renterName={unitData?.name}
           renterEmail={unitData?.email}
+          renterPhone={renterPhone || unitData?.phone}  // ✅ forward phone
           onAccepted={onAccepted}
           onRefused={onRefused}
           onClosed={onClosed}

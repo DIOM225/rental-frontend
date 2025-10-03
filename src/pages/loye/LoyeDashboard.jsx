@@ -52,7 +52,7 @@ function LoyeDashboard() {
           leaseEnd: raw?.leaseEnd || raw?.leaseEndText,
           unitType: raw?.unitType || raw?.type || raw?.unit?.type,
           email: raw?.email || raw?.user?.email,
-          phone: raw?.phone || raw?.user?.phone,
+          phone: raw?.phone || raw?.user?.phone,   // ✅ renter phone
 
           // ✅ Manager info (fallback to owner if manager not available)
           mgmtEmail:
@@ -243,6 +243,7 @@ function LoyeDashboard() {
       <RentBanner
         unitData={unitData}
         rentStatus={unitData?.rentStatus}   // ✅ pass rentStatus to banner
+        renterPhone={unitData?.phone}      // ✅ NEW: pass phone to payment flow
         field={field}
         safeUnitCode={safeUnitCode}
         onAccepted={handleAccepted}
