@@ -19,19 +19,24 @@ export default function PayRentButton({
     setError("");
 
     try {
+      const payload = {
+        unitCode,
+        amount: amountXof,
+        period,
+        renterName,
+        renterEmail,
+        renterPhone, // ✅ include phone in request body
+      };
+
+      // ✅ Debug log to verify frontend payload
+      console.log("📤 Sending payment payload:", payload);
+
       const res = await fetch(
         `${process.env.REACT_APP_API_URL}/api/loye/payments/cinetpay/init-redirect`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            unitCode,
-            amount: amountXof,
-            period,
-            renterName,
-            renterEmail,
-            renterPhone, // ✅ include phone in request body
-          }),
+          body: JSON.stringify(payload),
         }
       );
 

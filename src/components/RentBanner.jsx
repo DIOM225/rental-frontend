@@ -4,13 +4,14 @@ import './RentBanner.css'; // ✅ important
 
 function RentBanner({
   unitData,
-  rentStatus,   // ✅ new prop from backend
+  rentStatus,   // ✅ from backend
   field,
   safeUnitCode,
   onAccepted,
   onRefused,
   onClosed,
-  renterPhone   // ✅ NEW: accept renterPhone from parent
+  renterPhone,  // ✅ from parent
+  renterEmail   // ✅ NEW: also accept renterEmail from parent
 }) {
   const dueDay = unitData?.rentDueDate || 10;
 
@@ -99,8 +100,8 @@ function RentBanner({
           amountXof={unitData?.rentAmount}
           label="Payer le loyer"
           renterName={unitData?.name}
-          renterEmail={unitData?.email}
-          renterPhone={renterPhone || unitData?.phone}  // ✅ forward phone
+          renterEmail={renterEmail || unitData?.email}   // ✅ ensure email is passed
+          renterPhone={renterPhone || unitData?.phone}   // ✅ ensure phone is passed
           onAccepted={onAccepted}
           onRefused={onRefused}
           onClosed={onClosed}

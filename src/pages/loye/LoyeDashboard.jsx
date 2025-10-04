@@ -51,7 +51,7 @@ function LoyeDashboard() {
           daysRemaining: raw?.daysRemaining,
           leaseEnd: raw?.leaseEnd || raw?.leaseEndText,
           unitType: raw?.unitType || raw?.type || raw?.unit?.type,
-          email: raw?.email || raw?.user?.email,
+          email: raw?.email || raw?.user?.email,   // ✅ renter email
           phone: raw?.phone || raw?.user?.phone,   // ✅ renter phone
 
           // ✅ Manager info (fallback to owner if manager not available)
@@ -80,6 +80,7 @@ function LoyeDashboard() {
         };
 
         setUnitData(normalized);
+        console.log("📦 Normalized renter data:", normalized);
       } catch (e) {
         setUnitData({});
       } finally {
@@ -242,8 +243,9 @@ function LoyeDashboard() {
       {/* Payment Banner */}
       <RentBanner
         unitData={unitData}
-        rentStatus={unitData?.rentStatus}   // ✅ pass rentStatus to banner
-        renterPhone={unitData?.phone}      // ✅ NEW: pass phone to payment flow
+        rentStatus={unitData?.rentStatus}   // ✅ pass rentStatus
+        renterPhone={unitData?.phone}      // ✅ pass phone
+        renterEmail={unitData?.email}      // ✅ pass email too
         field={field}
         safeUnitCode={safeUnitCode}
         onAccepted={handleAccepted}
