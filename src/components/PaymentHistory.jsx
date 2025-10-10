@@ -46,8 +46,13 @@ function PaymentHistory({ history, historyLoading, formatFCFA }) {
 // 🔍 Normalize status to uppercase and standard values
 function normalizeStatus(status) {
   const s = (status || '').toUpperCase();
-  if (['ACCEPTED', 'REFUSED', 'PENDING'].includes(s)) return s;
-  return 'CREATED';
+
+  // ✅ Support both CinetPay and Wave conventions
+  if (['ACCEPTED', 'PAID', 'COMPLETE'].includes(s)) return 'ACCEPTED';
+  if (['REFUSED', 'FAILED', 'ERROR'].includes(s)) return 'REFUSED';
+  if (['PENDING', 'CREATED', 'NEW'].includes(s)) return 'PENDING';
+
+  return s || 'CREATED';
 }
 
 // 🎨 Assign colors based on status
