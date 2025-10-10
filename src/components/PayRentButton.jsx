@@ -7,13 +7,14 @@ export default function PayRentButton({
   period,
   renterName,
   renterEmail,
-  renterPhone, // ✅ NEW
+  renterPhone, // ✅ still passed
   label = "Payer le loyer",
   className = "",
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // ✅ Handle Wave payment instead of CinetPay
   const startRedirect = async () => {
     setLoading(true);
     setError("");
@@ -22,17 +23,14 @@ export default function PayRentButton({
       const payload = {
         unitCode,
         amount: amountXof,
-        period,
-        renterName,
-        renterEmail,
-        renterPhone, // ✅ include phone in request body
+        renterPhone,
       };
 
-      // ✅ Debug log to verify frontend payload
-      console.log("📤 Sending payment payload:", payload);
+      console.log("📤 Sending Wave payload:", payload);
 
+      // ✅ Call your Wave API route
       const res = await fetch(
-        `${process.env.REACT_APP_API_URL}/api/loye/payments/cinetpay/init-redirect`,
+        `${process.env.REACT_APP_API_URL}/api/loye/payments/wave/init`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -42,14 +40,15 @@ export default function PayRentButton({
 
       const data = await res.json();
 
-      if (res.ok && data.ok && data.payment_url) {
-        // ⏩ Redirect user to CinetPay payment page
-        window.location.href = data.payment_url;
+      if (res.ok && data.checkoutUrl) {
+        // ⏩ Redirect user to Wave checkout
+        window.location.href = data.checkoutUrl;
       } else {
-        throw new Error(data.error || "Erreur inconnue");
+        throw new Error(data.error?.message || "Échec de la génération du paiement Wave.");
       }
     } catch (err) {
-      setError(err.message);
+      console.error("Wave payment error:", err);
+      setError(err.message || "Erreur inconnue");
     } finally {
       setLoading(false);
     }
