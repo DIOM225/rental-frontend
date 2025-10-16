@@ -31,6 +31,7 @@ import LoyeDashboard from './pages/loye/LoyeDashboard'; // ✅ polished version
 import OwnerProperties from './pages/loye/OwnerProperties';
 import CreateProperty from './pages/loye/CreateProperty';
 import PropertyDetailView from './pages/loye/PropertyDetailView';
+import ReceiptPage from './pages/loye/ReceiptPage'; // ✅ NEW: receipt page
 
 // 🔹 Admin
 import AdminLayout from './pages/admin/AdminLayout';
@@ -82,6 +83,10 @@ function App() {
           <Route path="/loye/properties" element={<RequireAuth><OwnerProperties /></RequireAuth>} />
           <Route path="/loye/create" element={<RequireAuth><CreateProperty /></RequireAuth>} />
           <Route path="/loye/property/:id" element={<RequireAuth><PropertyDetailView /></RequireAuth>} />
+
+          {/* 🧾 NEW: Receipt routes */}
+          <Route path="/loye/receipt/:id" element={<RequireAuth><ReceiptPage /></RequireAuth>} />
+          <Route path="/loye/receipt/success" element={<RequireAuth><ReceiptPage /></RequireAuth>} />
 
           {/* 🛠 Admin */}
           <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
